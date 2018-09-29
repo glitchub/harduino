@@ -5,10 +5,10 @@
 
 // count millisecond ticks, wraps in about 50 days
 static volatile unsigned long ticks;
-ISR(TIMER0_COMPA_vect) 
-{ 
+ISR(TIMER0_COMPA_vect)
+{
     ticks++;
-}   
+}
 
 // stop the tick counter
 void stop_ticks(void)
@@ -16,25 +16,25 @@ void stop_ticks(void)
     TIMSK0 = 0;     // disable interrupt
     TCCR0B = 0;     // disable timer
     ticks = 0;      // clear count
-    TCNT0 = 0;
-}    
+}
 
 // (re)start the tick counter
 void start_ticks(void)
 {
     stop_ticks();
+    TCNT0 = 0;      // start from 0
     TCCR0A = 2;     // CTC mode
 #ifndef F_CPU
 #error Must define F_CPU
-#elif (F_CPU==16000000UL)    
+#elif (F_CPU==16000000UL)
     OCR0A = 249;    // interrupt every 250 clocks
-    TCCR0B = 3;     // 1/64 clock == 250Khz 
+    TCCR0B = 3;     // 1/64 clock == 250Khz
 #elif (F_CPU==8000000UL)
-    OCR0A = 124;    // interrupt every 125 clocks 
+    OCR0A = 124;    // interrupt every 125 clocks
     TCCR0B = 3;     // 1/64 clock == 125Kz
-#else    
+#else
 #error "F_CPU not supported"
-#endif     
+#endif
     TIMSK0 = 2;     // enable OCIE0A interrupt
     sei();
 }
