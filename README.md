@@ -14,6 +14,8 @@ Files include:
 
     main.c - example application to execise all other functions.
 
+    serial.c - support for buffered serial transmit and receive
+
     Makefile - build the designated application.
 
 Currently supports 16Mhz UNO since that's what I have, in theory other
