@@ -1,8 +1,7 @@
 // LCD module support, for controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
 #include <stdio.h>
-
-#include "uno.h"    // uno pin definitions
+#include <avr/io.h>
 #include "wait.h"   // waituS and waitmS
 
 // Change these per your design. This code assumes write-only 4-bit mode, so

@@ -1,8 +1,8 @@
 #include <stdio.h>
-
-#include "uno.h"
+#include <avr/io.h>
 #include "lcd.h"
 #include "ticks.h"
+#include "serial.h"
 
 #define D4 GPIO03
 #define D5 GPIO04
@@ -20,6 +20,9 @@ int main(void)
     FILE *lcd = init_lcd(2, 16);                // 2x16 display
     fprintf(lcd, "Hello there!");
 
+    FILE *serial = init_serial(115200UL);
+    fprintf(serial, "Hello from serial!\r\n");
+
     DDR(GPIO13) |= BIT(GPIO13);                 // LED is attached to PIN13
 
     while(1)
@@ -29,9 +32,23 @@ int main(void)
         {
             then=now;                           // remember
             PIN(GPIO13) |= BIT(GPIO13);         // toggle the LED
-            fprintf(lcd, "\f%ld\v\n%02d:%02d:%02d:%02d", now, (int)(now/86400), (int)((now % 86400)/3600), (int)((now % 3600)/60), (int)(now%60));
+
+            int d=(int)(now/86400);
+            int h=(int)(now % 86400)/3600;
+            int m=(int)(now % 3600)/60;
+            int s=(int)(now % 60);
+
+            // For lcd. \f=go to first line, \v=clr to eol, \n=go to next line
+            fprintf(lcd, "\f%ld\v\n%02d:%02d:%02d:%02d", now, d, h, m, s);
+
+            fprintf(serial, "%ld -> %02d:%02d:%02d:%02d\r\n", now, d, h, m, s);
+
+            if (readable_serial())
+            {
+                fprintf(serial, "Did you just say '");
+                do fputc(fgetc(serial), serial); while (readable_serial());
+                fprintf(serial, "'?\r\n");
+            }
         }
     }
 }
-
-

@@ -7,9 +7,9 @@ Files include:
     lcd.c - support for generic LCD modules (what Arduino calls
     "LiquidCrystal")
 
-    tick.c - support for background millisecond counter
+    ticks.c - support for background millisecond counter
 
-    wait.c - inline waituS() and waitmS() delay functions, for very short
+    wait.c - inline waituS() and waitmS() delay functions, for short
     delays
 
     main.c - example application to execise all other functions.

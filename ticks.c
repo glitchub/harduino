@@ -1,6 +1,5 @@
 // Millisecond tick counter using TIMER0
 
-#include <avr/io.h>
 #include <avr/interrupt.h>
 
 // count millisecond ticks, wraps in about 50 days
