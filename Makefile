@@ -4,7 +4,7 @@
 TARGET=test
 
 # Files to compile
-SOURCES=main.c lcd.c wait.c ticks.c serial.c
+SOURCES=main.c lcd.c wait.c ticks.c serial.c nec.c
 
 # CPU, for avr-gcc
 CHIP=atmega328p
@@ -31,8 +31,8 @@ ${TARGET}.elf: $(addsuffix .o, $(basename ${SOURCES}))
 	${PREFIX}gcc -mmcu=${CHIP} -Wl,-Map=${TARGET}.map -o $@ $^
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
-%.o: %.c
-	${PREFIX}gcc -DF_CPU=${CLOCK} -mmcu=${CHIP} -include ${BOARD}.h ${DEBUG} -Os -Wall -Werror -std=gnu99 -c -o $@ $< 
+%.o: %.c *.h Makefile
+	${PREFIX}gcc -DF_CPU=${CLOCK} -mmcu=${CHIP} -include ${BOARD}.h -g -Os -Wall -Werror -std=gnu99 -c -o $@ $< 
 
 .PHONY: install
 install: ${TARGET}.hex

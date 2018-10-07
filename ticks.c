@@ -1,44 +1,44 @@
-// Millisecond tick counter using TIMER0
+// Tick counter, using TIMER2. In theory we're counting milliseconds, but
+// Arduino resonator is wildly inaccurate so let's just call them 'ticks'
+// instead.
 
 #include <avr/interrupt.h>
 
-// count millisecond ticks, wraps in about 50 days
+// Accrue ticks, the counter will wrap about every 50 days.
 static volatile unsigned long ticks;
-ISR(TIMER0_COMPA_vect)
+ISR(TIMER2_COMPA_vect)
 {
     ticks++;
 }
 
-// stop the tick counter
+// Stop the tick counter
 void stop_ticks(void)
 {
-    TIMSK0 = 0;     // disable interrupt
-    TCCR0B = 0;     // disable timer
-    ticks = 0;      // clear count
+    TIMSK2 = 0;         // disable interrupt
+    TCCR2B = 0;         // disable timer
 }
 
-// (re)start the tick counter
-void start_ticks(void)
+// (Re)start the tick counter with specified initial value
+void start_ticks(unsigned long initial)
 {
     stop_ticks();
-    TCNT0 = 0;      // start from 0
-    TCCR0A = 2;     // CTC mode
-#ifndef F_CPU
-#error Must define F_CPU
-#elif (F_CPU==16000000UL)
-    OCR0A = 249;    // interrupt every 250 clocks
-    TCCR0B = 3;     // 1/64 clock == 250Khz
+    TCNT2 = 0;          // start from initial value
+    ticks = initial;
+    TCCR2A = 2;         // CTC mode
+#if (F_CPU==16000000UL)
+    OCR2A = 249;        // interrupt every 250 clocks
+    TCCR2B = 4;         // 1/64 clock == 250Khz
 #elif (F_CPU==8000000UL)
-    OCR0A = 124;    // interrupt every 125 clocks
-    TCCR0B = 3;     // 1/64 clock == 125Kz
+    OCR2A = 124;        // interrupt every 125 clocks
+    TCCR2B = 4;         // 1/64 clock == 125Kz
 #else
 #error "F_CPU not supported"
 #endif
-    TIMSK0 = 2;     // enable OCIE0A interrupt
+    TIMSK2 = 2;         // enable OCIE0A interrupt
     sei();
 }
 
-// get millseconds since last start_ticks(), or 0 if clock is stopped
+// Get tick count since last start_ticks() (or 0 if ticks are stopped).
 unsigned long get_ticks(void)
 {
     unsigned char sreg = SREG;
