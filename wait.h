@@ -7,7 +7,7 @@
 #endif
 
 // Spin delay up to MAXUS microseconds
-void waituS(unsigned int uS);
+void waituS(uint16_t uS);
 
 // Spin delay up to 65535 milliseconds
-void waitmS(unsigned int mS);
+void waitmS(uint16_t mS);

@@ -1,4 +1,4 @@
-// If set, init_lcd() returns a FILE* that can be used with fprintf, etc. Note
+// If set, start_lcd() returns a FILE* that can be used with fprintf, etc. Note
 // use of stdio adds at least 1Kb to target image.
 #define LCD_STDIO 1
 
@@ -13,9 +13,9 @@
 
 // Initialize LCD module with visible columns and rows (line shifting not supported).
 #if LCD_STDIO
-FILE *init_lcd(int columns, int rows);
+FILE *start_lcd(int8_t columns, int8_t rows);
 #else
-void init_lcd(int columns, int rows);
+void start_lcd(int8_t columns, int8_t rows);
 #endif
 
 // Write character to LCD and move cursor right, not past the end of the
@@ -27,4 +27,4 @@ void init_lcd(int columns, int rows);
 //   \n - move cursor to first column of next line, wrap back to first line
 //   \r - move cursor to first column of current line
 //   \v - clear text to end of line
-void write_lcd(char c);
+void write_lcd(int8_t c);

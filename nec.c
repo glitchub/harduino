@@ -1,5 +1,6 @@
 // Receive NEC IR via timer 1 input capture.
 
+#include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
@@ -9,7 +10,7 @@
 // Detector must attach to ICP1, which on Uno is PB0 aka pin 8.
 
 // The detector must demodulate the IR signal (e.g. AZ-1838HS optimized for
-// 38Khz). 
+// 38Khz).
 //
 // Set detector 'idle' output 1=high or 0=low. The AZ-1838HS output is normally
 // high, goes low when mark is detected.
@@ -29,8 +30,8 @@
 //#define uS(n) ((F_CPU*(n))/8000000UL)
 #define uS(n) ((n)*2)
 
-// remember last key code, current detector state 
-static volatile unsigned long keycode, state;
+// remember last key code, current detector state
+static volatile uint32_t keycode, state;
 
 // Reset IR state machine
 static inline void reset(void)
@@ -58,11 +59,11 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(TIMER1_CAPT_vect)
 {
-    static unsigned long bits;                          // accrued bits
-    static unsigned int edge;                           // time of last edge 
-    unsigned int width=ICR1-edge;                       // width of last pulse 
+    static uint32_t bits;                               // accrued bits
+    static uint16_t edge;                               // time of last edge
+    uint16_t width=ICR1-edge;                           // width of last pulse
     edge=ICR1;                                          // remember new edge
-    
+
     switch (state)
     {
         case 0:                                         // start of preamble mark
@@ -81,41 +82,42 @@ ISR(TIMER1_CAPT_vect)
             OCR1A = ICR1 + uS(560+56);                  // expect mark to be 560uS
             break;
 
-        default:                                        // data bits   
-            if (width < uS(560-56)) goto irx;           // too short?    
+        default:                                        // data bits
+            if (width < uS(560-56)) goto irx;           // too short?
             if (state & 1)                              // if odd: end of data mark
                 OCR1A = edge + uS(1690+169);            // expect space to be up to 1690 uS
             else                                        // if even: end of data space
             {
                 OCR1A = edge + uS(560+56);              // expect mark to be 560uS
                 bits >>= 1;                             // note another bit
-                if (width>1125) bits |= 0x80000000;     // long space is a 1    
+                if (width>1125) bits |= 0x80000000;     // long space is a 1
             }
             break;
 
         case 67:                                        // end of last pulse
-            if (width < uS(560-56)) goto irx;           // too short?    
+            if (width < uS(560-56)) goto irx;           // too short?
             keycode = bits;                             // ok remember new code
           irx:
             reset();                                    // reset state machine
             return;
-            
+
     }
     TCCR1B ^= (1 << ICES1);                             // toggle edge of interest
     state++;                                            // advance to next state
-}    
-    
-static unsigned long pressed;
+}
 
+static uint32_t pressed;
+
+// Stop the NEC receiver
 void stop_nec(void)
 {
     TIMSK1 = 0;                                         // disable interrupts
-    TCCR1B = 0;                                         // disable counter    
+    TCCR1B = 0;                                         // disable counter
     TIFR1 = 0xff;                                       // clear any pending
     keycode = pressed = 0;
-}    
+}
 
-// (Re)start NEC IR receiver    
+// (Re)start NEC IR receiver
 void start_nec(void)
 {
     stop_nec();
@@ -123,19 +125,18 @@ void start_nec(void)
     TCCR1A = 0;
     TCCR1B = 2; // clock/8
     reset();
-    sei();      // enable interrupt
 }
 
 // Return 0 if no key mevent, else set *key and return PRESS for new key or
 // RELEASE for new release (timeout). Note it is possible to get a new PRESS
 // without a prior RELEASE.
 // Assumes start_ticks() has been called.
-int get_nec(unsigned long *key)
+int8_t get_nec(uint32_t *key)
 {
-    static unsigned long since=0;
-    unsigned sreg = SREG;
+    static uint32_t since=0;
+    uint8_t sreg = SREG;
     cli();
-    unsigned long k = keycode;
+    uint32_t k = keycode;
     keycode = 0;
     SREG = sreg;
 
@@ -143,10 +144,10 @@ int get_nec(unsigned long *key)
     {
         case 0:
             if (!pressed || get_ticks()-since < 110) return 0;
-            *key=pressed; 
+            *key=pressed;
             pressed=0;
-            return RELEASED;
-        
+            return NEC_RELEASED;
+
         case REPEAT:
             if (pressed) since=get_ticks();
             return 0;
@@ -154,6 +155,6 @@ int get_nec(unsigned long *key)
         default:
             *key = pressed = k;
             since = get_ticks();
-            return PRESSED;
-    }        
-}    
+            return NEC_PRESSED;
+    }
+}

@@ -4,7 +4,7 @@
 TARGET=test
 
 # Files to compile
-SOURCES=main.c lcd.c wait.c ticks.c serial.c nec.c
+SOURCES=main.c lcd.c wait.c ticks.c serial.c nec.c dht11.c
 
 # CPU, for avr-gcc
 CHIP=atmega328p
@@ -17,6 +17,7 @@ CLOCK=16000000UL
 
 # Toolchain prefix
 PREFIX=avr-
+#PREFIX=/home/rich/bin/arduino-1.8.7/hardware/tools/avr/bin/avr-
 
 # Try to find Arduino serial via udev or default to /dev/ttyACM0
 SERIAL=$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)

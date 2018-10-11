@@ -2,10 +2,13 @@
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
 
+#include <stdint.h>
 #include <avr/interrupt.h>
 
+#include "ticks.h"
+
 // Accrue ticks, the counter will wrap about every 50 days.
-static volatile unsigned long ticks;
+static volatile uint32_t ticks;
 ISR(TIMER2_COMPA_vect)
 {
     ticks++;
@@ -19,7 +22,7 @@ void stop_ticks(void)
 }
 
 // (Re)start the tick counter with specified initial value
-void start_ticks(unsigned long initial)
+void start_ticks(uint32_t initial)
 {
     stop_ticks();
     TCNT2 = 0;          // start from initial value
@@ -35,15 +38,14 @@ void start_ticks(unsigned long initial)
 #error "F_CPU not supported"
 #endif
     TIMSK2 = 2;         // enable OCIE0A interrupt
-    sei();
 }
 
 // Get tick count since last start_ticks() (or 0 if ticks are stopped).
-unsigned long get_ticks(void)
+uint32_t get_ticks(void)
 {
-    unsigned char sreg = SREG;
+    uint8_t sreg = SREG;
     cli();
-    unsigned long t=ticks;
+    uint32_t t=ticks;
     SREG = sreg;
     return t;
 }

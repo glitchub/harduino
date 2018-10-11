@@ -1,6 +1,7 @@
 // LCD module support, for controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
 
+#include <stdint.h>
 #include <stdio.h>
 #include <avr/io.h>
 #include "wait.h"   // waituS and waitmS
@@ -10,10 +11,10 @@
 #define DATA 0 // Send data (RS high)
 #define CMD4 1 // send 4-bit command only, from data high nibble
 #define CMD8 2 // send 8-bit command
-static void send(int mode, unsigned char data)
+static void send(int8_t mode, uint8_t data)
 {
     if (!mode) PORT(LCD_RS) |= BIT(LCD_RS), mode=2; else PORT(LCD_RS) &= ~BIT(LCD_RS); // set register select
-    for (int n=0; n < mode; n++, data<<=4)
+    for (int8_t n=0; n < mode; n++, data<<=4)
     {
         PORT(LCD_E) |= BIT(LCD_E);
         if (data & 0x10) PORT(LCD_D4) |= BIT(LCD_D4); else PORT(LCD_D4) &= ~BIT(LCD_D4);
@@ -26,9 +27,9 @@ static void send(int mode, unsigned char data)
 }
 
 // max and current column and line
-static int columns, lines, column, line;
+static int8_t columns, lines, column, line;
 
-static void set(int l, int c)
+static void set(int8_t l, int8_t c)
 {
     line=l;
     column=c;
@@ -40,7 +41,7 @@ static void set(int l, int c)
 }
 
 // write character to lcd, handle magic controls
-void write_lcd(char c)
+void write_lcd(int8_t c)
 {
     switch(c)
     {
@@ -62,7 +63,7 @@ void write_lcd(char c)
 
         case '\v':              // clear to end of line
             if (column == columns-1) break;
-            for (int n=column; n < columns; n++) send(DATA, ' ');
+            for (int8_t n=column; n < columns; n++) send(DATA, ' ');
             set(line, column);
             break;
 
@@ -78,9 +79,9 @@ void write_lcd(char c)
 #if LCD_STDIO
 static int put(char c, FILE *f) { (void)f; write_lcd(c); return 0; }
 static FILE handle = FDEV_SETUP_STREAM(put, NULL, _FDEV_SETUP_WRITE);
-FILE *init_lcd(int l, int c)
+FILE *start_lcd(int8_t l, int8_t c)
 #else
-void init_lcd(int l, int c)
+void start_lcd(int8_t l, int8_t c)
 #endif
 {
     if (l < 1) l = 1; if (l > 2) l = 2;
