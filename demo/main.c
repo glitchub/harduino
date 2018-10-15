@@ -1,53 +1,43 @@
-// Harduino main demo program
-
-#include <stdint.h>
-#include <stdio.h>
-#include <avr/io.h>
+// Harduino demo, illustrating tick, serial, lcd, nec, dht11, and sr04 drivers.
 #include <avr/boot.h>
-#include <avr/interrupt.h>
 
-#include "ticks.h"
-#include "lcd.h"
-#include "serial.h"
-#include "nec.h"
-#include "dht11.h"
+#define LED GPIO13                              // on-board LED 
 
-// note use of fprintf increases code size by about 1kb
 int main(void)
 {
-    cli();                                      // make sure interrupts are disabled 
-
-    // get fuses
-    uint8_t exfuse = boot_lock_fuse_bits_get(GET_EXTENDED_FUSE_BITS);
-    uint8_t lock = boot_lock_fuse_bits_get(GET_LOCK_BITS);
-    uint8_t hifuse = boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS);
-    uint8_t lofuse = boot_lock_fuse_bits_get(GET_LOW_FUSE_BITS);
-    
-    // start various services
+    // start drivers
+    start_ticks(0);                             // millisecond ticks
     FILE *serial = start_serial(115200UL);      // serial I/O
-    FILE *lcd = start_lcd(2, 16);               // LCD module is 2x16
+    FILE *lcd = start_lcd(2,16);                // 2x16 LCD module
     start_nec();                                // NEC IR
     start_dht11();                              // Thermal/humidty sense
-    start_ticks(0);                             // Start at tick 0
+    start_sr04();                               // Ultrasonic range
+    sei();          
 
-    DDR(GPIO13) |= BIT(GPIO13);                 // LED is attached to PIN13
-    
-    sei();                                      // Enable interrupts
+    DDR(LED) |= BIT(LED);                       // Make the LED an output
 
     fprintf(lcd, "\fBooting...\n");             // \f == home cursor
 
     fprintf(serial, "Booting...\r\n");          // terminal always requires crlf
+    
+    // get fuses
+    cli();                                      
+    uint8_t exfuse = boot_lock_fuse_bits_get(GET_EXTENDED_FUSE_BITS);
+    uint8_t lock = boot_lock_fuse_bits_get(GET_LOCK_BITS);
+    uint8_t hifuse = boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS);
+    uint8_t lofuse = boot_lock_fuse_bits_get(GET_LOW_FUSE_BITS);
+    sei();                                      // Enable interrupts
     fprintf(serial, "Fuses: lo=%02X hi=%02X ex=%02X lock=%02X\r\n", lofuse, hifuse, exfuse, lock);
 
     uint32_t then=0, input=0;
 
     while(1)
     {
-        uint32_t now=get_ticks()/1000;          // get seconds
-        if (now != then)                        // if different
+        uint32_t now=read_ticks()/1000;          // get seconds
+        if (now != then)                        // if new
         {
             then=now;                           // remember
-            PIN(GPIO13) |= BIT(GPIO13);         // toggle the LED
+            PIN(LED) |= BIT(LED);               // toggle the LED
 
             uint8_t d=now / 86400UL;
             uint8_t h=(now % 86400UL) / 3600;
@@ -66,10 +56,19 @@ int main(void)
                 do fputc(fgetc(serial), serial); while (readable_serial());
                 fprintf(serial, "\"?\r\n");
             }
+            
+            // report sr04 range
+            int16_t cm=read_sr04();
+            switch(cm)
+            {
+                case -2: fprintf(serial,"sr04 not responding!\r\n"); break;
+                case -1: fprintf(serial,"sr04 range: unknown\r\n"); break;
+                default: fprintf(serial,"sr04 range: %d cm\r\n", cm);
+            }    
 
-            // read dht every 2 seconds
             if (now & 1)
             {
+                // every two seconds
                 uint8_t dc, rh, r;
                 r=read_dht11(&dc, &rh);
                 if (r) fprintf(serial, "DHT error %d\r\n", r);
@@ -78,11 +77,13 @@ int main(void)
         }
 
         uint32_t key;
-        if (get_nec(&key)==NEC_PRESSED && NEC_VENDOR(key) == 0xff00)
+        if (read_nec(&key)==NEC_PRESSED)
         {
             int8_t n=-1;
             switch(NEC_EVENT(key))
             {
+                // These are codes for some random "Elegoo" remote. Your codes
+                // will certainly be different.
                 case 0x45:                              // power
                     start_ticks(input);
                     input=0;
@@ -109,10 +110,10 @@ int main(void)
                 case 0x42: n=7; break;                  // 7
                 case 0x52: n=8; break;                  // 8
                 case 0x4a: n=9; break;                  // 9
-                default: fprintf(serial,"Unknown key %08lX", key); break;
+                default: fprintf(serial,"Unknown remote key %08lX", key); break;
             }
             if (n >= 0) input=(input*10)+n;
-            fprintf(lcd, "\f%lu\xff\v", input);
+            fprintf(lcd, "\f%lu\xff\v", input);         // Take over the top LCD line, with a fake cursor
         }
     }
 }

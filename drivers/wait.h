@@ -3,7 +3,7 @@
 #elif F_CPU==8000000L
 #define MAXUS 32768
 #else
-#error "Invalid F_CPU"
+#error "F_CPU not supported"
 #endif
 
 // Spin delay up to MAXUS microseconds

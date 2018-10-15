@@ -1,43 +1,38 @@
 # Harduino Makefile
 
-# Basename of the generated binary
-TARGET=test
+ifeq ($(filter clean spotless,$(MAKECMDGOALS)),) 
 
-# Files to compile
-SOURCES=main.c lcd.c wait.c ticks.c serial.c nec.c dht11.c
+# default to last project
+PROJECT=$(shell readlink .*.ln 2>/dev/null)
+ifeq ($(PROJECT),) 
+$(error "No project defined, please run 'make PROJECT=project'")
+endif
 
-# CPU, for avr-gcc
-CHIP=atmega328p
+include ${PROJECT}/make.inc
 
-# BOARD, includes corresponding file "${BOARD}.h'
-BOARD=uno_r3
-
-# CPU clock in HZ
-CLOCK=16000000UL
-
-# Toolchain prefix
-PREFIX=avr-
-#PREFIX=/home/rich/bin/arduino-1.8.7/hardware/tools/avr/bin/avr-
-
-# Try to find Arduino serial via udev or default to /dev/ttyACM0
-SERIAL=$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)
+VPATH=${PROJECT} drivers
 
 .PHONY: default
-default: ${TARGET}.hex
+default: .${PROJECT}.ln ${PROJECT}.hex
 
-${TARGET}.hex: ${TARGET}.elf
-	${PREFIX}objcopy -O ihex $< $@
+.${PROJECT}.ln:; make spotless && ln -sf ${PROJECT} $@
 
-${TARGET}.elf: $(addsuffix .o, $(basename ${SOURCES}))
-	${PREFIX}gcc -mmcu=${CHIP} -Wl,-Map=${TARGET}.map -o $@ $^
+${PROJECT}.hex: ${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
+
+${PROJECT}.elf: main.o $(addsuffix .o,${FILES})
+	${PREFIX}gcc -mmcu=${CHIP} -Wl,-Map=${PROJECT}.map -o $@ $^
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
-%.o: %.c *.h Makefile
-	${PREFIX}gcc -DF_CPU=${CLOCK} -mmcu=${CHIP} -include ${BOARD}.h -g -Os -Wall -Werror -std=gnu99 -c -o $@ $< 
+%.o: %.c; ${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h -g -Os -Wall -Werror -std=gnu99 --save-temps -c -o $@ $< 
 
-.PHONY: install
-install: ${TARGET}.hex
-	avrdude -q -c arduino -p ${CHIP} -P ${SERIAL} -b 115200 -U flash:w:$<:i
+.PHONY: download 
+download: ${PROJECT}.hex; ./download -c ${CHIP} $<
+
+endif
 
 .PHONY: clean
-clean:; rm -f *o *.elf *.hex *.lst *.map
+clean:; rm -f *.o *.elf *.hex *.lst *.map *.s *.i 
+
+.PHONY: spotless 
+spotless: clean; rm -f .*.ln
+

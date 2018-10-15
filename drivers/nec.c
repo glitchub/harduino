@@ -1,20 +1,13 @@
 // Receive NEC IR via timer 1 input capture.
 
-#include <stdint.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
+// Detector attaches to ICP1. We assume the detector demodulates the IR signal
+// (e.g. AZ-1838HS optimized for 38Khz).
 
-#include "ticks.h"
-#include "nec.h"
-
-// Detector must attach to ICP1, which on Uno is PB0 aka pin 8.
-
-// The detector must demodulate the IR signal (e.g. AZ-1838HS optimized for
-// 38Khz).
-//
-// Set detector 'idle' output 1=high or 0=low. The AZ-1838HS output is normally
-// high, goes low when mark is detected.
-#define IDLE 1
+// NEC_IDLE defines whether the detector output is high or low when not
+// receiving a pulse.
+#ifndef NEC_IDLE
+#error "Must define NEC_IDLE 0 or 1"
+#endif
 
 // NEC IR transmission consist of a preamble, 32 data bits, and a postamble.
 //      Preamble: 9000 uS mark and 4500 uS space
@@ -27,8 +20,13 @@
 //      Postamle: 560 uS mark
 
 // We run the clock at F_CPU/8 ticks per second. This converts microseconds to clock ticks.
-//#define uS(n) ((F_CPU*(n))/8000000UL)
+#if F_CPU==16000000L
 #define uS(n) ((n)*2)
+#elif F_CPU==8000000L
+#define uS(n) (n)
+#else
+#error F_CPU not supported
+#endif
 
 // remember last key code, current detector state
 static volatile uint32_t keycode, state;
@@ -38,10 +36,10 @@ static inline void reset(void)
 {
     TIMSK1 = 0;                 // disable timer interrupts
     state = 0;                  // reset state
-#if IDLE == 0
-    TCCR1B |= 1 << ICES1;       // detector output normally low, so interrupt on high
-#else
+#if NEC_IDLE
     TCCR1B &= ~(1 << ICES1);    // detector output normally high, so interrupt on low
+#else
+    TCCR1B |= 1 << ICES1;       // detector output normally low, so interrupt on high
 #endif
     TIFR1 = 0xff;               // clear pending interrupts
     TIMSK1 = 1 << ICIE1;        // enable input capture
@@ -131,7 +129,7 @@ void start_nec(void)
 // RELEASE for new release (timeout). Note it is possible to get a new PRESS
 // without a prior RELEASE.
 // Assumes start_ticks() has been called.
-int8_t get_nec(uint32_t *key)
+int8_t read_nec(uint32_t *key)
 {
     static uint32_t since=0;
     uint8_t sreg = SREG;
@@ -143,18 +141,18 @@ int8_t get_nec(uint32_t *key)
     switch(k)
     {
         case 0:
-            if (!pressed || get_ticks()-since < 110) return 0;
+            if (!pressed || read_ticks()-since < 110) return 0;
             *key=pressed;
             pressed=0;
             return NEC_RELEASED;
 
         case REPEAT:
-            if (pressed) since=get_ticks();
+            if (pressed) since=read_ticks();
             return 0;
 
         default:
             *key = pressed = k;
-            since = get_ticks();
+            since = read_ticks();
             return NEC_PRESSED;
     }
 }

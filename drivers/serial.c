@@ -1,12 +1,7 @@
-// Serial I/O for Arduino
+// Serial port driver
 
-#include <stdint.h>
-#include <stdio.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
-#include "serial.h"
-
+// SERIAL_TX_SIZE and SERIAL_RX_SIZE define the size of ram buffer allocated
+// for the corresponding function, 0 (or undefined) disables the function entirely.
 #if SERIAL_TX_SIZE>255 || SERIAL_RX_SIZE>255 || SERIAL_TX_SIZE<0 || SERIAL_RX_SIZE<0 || (!SERIAL_TX_SIZE && !SERIAL_RX_SIZE)
 #error "SERIAL_TX_SIZE/SERIAL_RX_SIZE config is invalid"
 #endif
@@ -30,7 +25,6 @@ ISR(USART_UDRE_vect)                                // holding register empty
 // Block until space in the transmit queue, then send it
 void write_serial(int8_t c)
 {
-    if (!UCSR0B) return; 
     while (txn == SERIAL_TX_SIZE);                  // spin while queue is full
     cli();
     txq[(txo + txn)%SERIAL_TX_SIZE] = (unsigned)c;  // add character to end of queue
@@ -42,11 +36,10 @@ void write_serial(int8_t c)
 // Return number of chars that can be written before blocking
 int8_t writeable_serial(void)
 {
-    if (!UCSR0B) return 0;
     return SERIAL_TX_SIZE-txn;
 }
 
-#if SERIAL_STDIO
+#ifdef SERIAL_STDIO
 static int put(char c, FILE *f) { (void) f; if (!UCSR0B) return EOF; write_serial(c); return 0; }  
 #endif
 #endif
@@ -66,7 +59,6 @@ ISR(USART_RX_vect)
 // Block until character is receive queue then return it
 int8_t read_serial(void)
 {
-    if (!UCSR0B) return 0;
     while (!rxn);                                   // spin whle queue is empty
     cli();
     uint8_t c = rxq[rxo];                           // get the oldest character
@@ -82,12 +74,18 @@ int8_t readable_serial(void)
     return rxn;
 }
 
-#if SERIAL_STDIO
+#ifdef SERIAL_STDIO
 static int get(FILE *f) { (void) f; if (!UCSR0B) return EOF; return (int)((unsigned)read_serial()); }  
 #endif
 #endif
 
-// Disable serial port
+#ifdef SERIAL_STDIO
+// Static file handle for fprintf, etc. Note do NOT fclose this handle.
+static FILE handle;
+#endif
+
+// Disable serial port. Attempting to use serial functions will result in
+// system hang.  
 void stop_serial(void)
 {
     UCSR0B = 0;
@@ -98,19 +96,14 @@ void stop_serial(void)
 #if SERIAL_RX_SIZE
     rxo=rxn=0;
 #endif
+#ifdef SERIAL_STDIO
+    // invalidate the file handle
+    memset(&handle, 0, sizeof handle);
+#endif    
 }
 
 // (Re)start serial port at specified baud rate, does not enable global interrupts!
-#if SERIAL_STDIO
-static FILE handle = FDEV_SETUP_STREAM(
-#if SERIAL_RX_SIZE && SERIAL_TX_SIZE
-    put, get, _FDEV_SETUP_RW
-#elif SERIAL_TX_SIZE
-    put, NULL, _FDEV_SETUP_WRITE
-#else
-    NULL, get, _FDEV_SETUP_READ
-#endif
-);
+#ifdef SERIAL_STDIO
 FILE *start_serial(uint32_t baud)
 #else
 void start_serial(uint32_t baud)
@@ -121,12 +114,20 @@ void start_serial(uint32_t baud)
     UCSR0C = 0x06;                          // N-8-1
     UCSR0A = 2;                             // set UX20
 #if SERIAL_TX_SIZE
+#ifdef SERIAL_STDIO
+    handle.put = put;
+    handle.flags = _FDEV_SETUP_WRITE;
+#endif    
     UCSR0B |= 0x08;                         // transmit pin enable
 #endif    
 #if SERIAL_RX_SIZE
+#ifdef SERIAL_STDIO
+    handle.get = get;
+    handle.flags |= _FDEV_SETUP_READ;
+#endif    
     UCSR0B |= 0x90;                         // receive interrupt enable, receive pin enable
 #endif
-#if SERIAL_STDIO 
+#ifdef SERIAL_STDIO 
     return &handle;
 #endif
 }

@@ -6,10 +6,14 @@
 // Each gpio is defined as GPIOXX, where XX is the nominal Uno pin number 1-13
 // or A1-A5.
 
+// BITN(GPIOXX) gives the gpio's bit as a value 0-7
+#define _BITN_(bit, pin, ddr, port) bit
+#define BITN(...) _BITN_(__VA_ARGS__)
+
 // BIT(GPIOXX) gives the gpio's bit mask as a power of 2, 0x01 to 0x80 (aka bit
 // vector)
-#define _BIT_(bit, pin, ddr, port) (1<<bit)
-#define BIT(...) _BIT_(__VA_ARGS__)
+#define BIT(...) (1<<BITN(__VA_ARGS__))
+#define BITM(...) (BIT(__VA_ARGS))
 
 // PIN(GPIOXX) gives the gpio's PIN register address
 #define _PIN_(bit, pin, ddr, port) pin

@@ -2,24 +2,42 @@ Harduino - support for Arduino hardware without the Arduino IDE.
 
 Requires avr-gcc and friends, and avrdude downloader.
 
-Files include:
+Projects:
+    
+    Each project has its own directory, containing at least main.c, main.h, and
+    make.inc.
 
-    lcd.c - support for generic LCD modules (what Arduino calls
-    "LiquidCrystal")
+    main.c must, of course, contain the project's main(). 
 
-    ticks.c - support for background millisecond counter
+    main.h includes all other headers and contains project-specific definitions
+    for each driver. gcc will include main.h automatically when building all
+    other files, most explicit #includes should not be required.
 
-    wait.c - inline waituS() and waitmS() delay functions, for short
-    delays
+    make.inc defines the toolchain PREFIX, the target CPU, and list of all
+    FILES to build (other than main).
 
-    main.c - example application to execise all other functions.
+Drivers:
 
-    serial.c - support for buffered serial transmit and receive
+    Each driver has a .c file and a .h file, in the ./drivers directory.
+    Drivers typically require static definitions in main.h, e.g. what CPU pins
+    to use, what CPU clock to assume, etc.
 
-    Makefile - build the designated application.
+    The drivers directory also contains pin definitions for each known Arduino
+    board, for example uno_r3.h.
 
-Currently supports 16Mhz UNO since that's what I have, in theory other
-platforms can be added without too much effort.
+Make argets:
 
-Make changes to the makefile as necessary for your environment, then 'make' to
-build the example (as test.hex), and 'make install' to download it to target.   
+    To build a particular project for the first time, run "make
+    PROJECT=basename". This will create a symlink to the project directory, so
+    you don't need to specify PROJECT again (unless you want to build a
+    different project).
+
+    Other targets include:
+
+        make download - download the project hex file. You can also run the
+        "download" script directly if you need to specify a differnt serial
+        device.
+
+        make clean - remove generated files
+
+        make spotless - remove generated files and the .project.ln symlink.

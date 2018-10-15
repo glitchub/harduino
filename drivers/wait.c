@@ -1,13 +1,10 @@
-// waituS and waitmS
-#include <stdint.h>
-
-#include "wait.h"
+// waituS and waitmS delay loops
 
 // Delay up to MAXUS microseconds
 void waituS(uint16_t N)
 {
-    // 6 cycles to get here if N is literal constant, + 4 cycles for the
-    // return, overhead is 10 cycles
+    // 6 cycles to get here if N is literal constant + 4 cycles for the return
+    // == overhead is 10 cycles
 #if F_CPU == 16000000UL
     // 16 cycles per microsecond 
     if (N <= 1) return;     // + 3 cycles ~~ 1uS just to get here
@@ -32,11 +29,13 @@ void waituS(uint16_t N)
 void waitmS(uint16_t N)
 {
 #if F_CPU == 16000000UL
+    // MAXUS is 16384
     while (N > 16) waituS(16000-1), N -= 16;  
 #elif F_CPU == 8000000UL
+    // MAXUS is 32768
     while (N > 32) waituS(32000-2), N -= 32; 
 #else
-#error "Invalid F_CPU"    
+#error "F_CPU not supported"    
 #endif
     if (N) waituS(N*1000);
 }
