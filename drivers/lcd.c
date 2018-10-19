@@ -78,8 +78,8 @@ void write_lcd(int8_t c)
     }
 }
 
-// stop lcd driver, tri-state all pins
-void stop_lcd(void)
+// disable lcd driver, release all pins
+void disable_lcd(void)
 {
     PORT(LCD_D4) &= ~BIT(LCD_D4); DDR(LCD_D4) &= ~BIT(LCD_D4);
     PORT(LCD_D5) &= ~BIT(LCD_D5); DDR(LCD_D5) &= ~BIT(LCD_D5);
@@ -87,24 +87,24 @@ void stop_lcd(void)
     PORT(LCD_D7) &= ~BIT(LCD_D7); DDR(LCD_D7) &= ~BIT(LCD_D7);
     PORT(LCD_RS) &= ~BIT(LCD_RS); DDR(LCD_RS) &= ~BIT(LCD_RS);
     PORT(LCD_E)  &= ~BIT(LCD_E);  DDR(LCD_E)  &= ~BIT(LCD_E);
-}    
+}
 
 // Given display lines and columns, initalize LCD.
 #ifdef LCD_STDIO
 static int put(char c, FILE *f) { (void)f; write_lcd(c); return 0; }
 static FILE handle = FDEV_SETUP_STREAM(put, NULL, _FDEV_SETUP_WRITE);
-FILE *start_lcd(uint8_t l, uint8_t c)
+FILE *enable_lcd(uint8_t l, uint8_t c)
 #else
-void start_lcd(uint8_t l, uint8_t c)
+void enable_lcd(uint8_t l, uint8_t c)
 #endif
 {
-    if (l < 1) l = 1; else if (l > 2) l = 2; 
-    if (c < 8) c = 8; else if (c > 40) c = 40; 
+    if (l < 1) l = 1; else if (l > 2) l = 2;
+    if (c < 8) c = 8; else if (c > 40) c = 40;
     lines=l;
     columns=c;
     curc=curl=0;
 
-    stop_lcd();
+    disable_lcd();
 
     // Pins are outputs
     DDR(LCD_D4) |= BIT(LCD_D4);

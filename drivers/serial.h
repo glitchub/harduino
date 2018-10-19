@@ -1,16 +1,16 @@
 // Serial port driver
 
-// Stop serial port
-void stop_serial(void); 
+// Disable serial port and release the pins
+void disable_serial(void);
 
-// (Re)start serial port at specified baud rate.
+// (Re)enable serial port at specified baud rate.
 // If SERIAL_STDIO is defined, returns a FILE * that can be used with fprintf,
 // etc. Note use of stdio will add about 1K to overall code size.
 #ifdef SERIAL_STDIO
 #include <stdio.h>
-FILE *start_serial(uint32_t baud);
+FILE *enable_serial(uint32_t baud);
 #else
-void start_serial(uint32_t baud);
+void enable_serial(uint32_t baud);
 #endif
 
 // Block until character can be written, then write it.

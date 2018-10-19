@@ -1,8 +1,5 @@
 // Definitions for Arduino Uno R3
 
-// This is always included by the Makefile, however to use these definitions
-// you must explicitly include avr/io.h.
-
 // Each gpio is defined as GPIOXX, where XX is the nominal Uno pin number 1-13
 // or A1-A5.
 

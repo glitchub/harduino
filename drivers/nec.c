@@ -106,8 +106,8 @@ ISR(TIMER1_CAPT_vect)
 
 static uint32_t pressed;
 
-// Stop the NEC receiver
-void stop_nec(void)
+// Disable NEC receiver and release pins
+void disable_nec(void)
 {
     TIMSK1 = 0;                                         // disable interrupts
     TCCR1B = 0;                                         // disable counter
@@ -115,10 +115,10 @@ void stop_nec(void)
     keycode = pressed = 0;
 }
 
-// (Re)start NEC IR receiver
-void start_nec(void)
+// (Re)enablet NEC IR receiver
+void enable_nec(void)
 {
-    stop_nec();
+    disable_nec();
     TCNT1 = 0;
     TCCR1A = 0;
     TCCR1B = 2; // clock/8
@@ -129,9 +129,9 @@ void start_nec(void)
 // RELEASE for new release (timeout). Note it is possible to get a new PRESS
 // without a prior RELEASE.
 // Assumes start_ticks() has been called.
-int8_t read_nec(uint32_t *key)
+int8_t get_nec(uint32_t *key)
 {
-    static uint32_t since=0;
+    static uint32_t timeout;
     uint8_t sreg = SREG;
     cli();
     uint32_t k = keycode;
@@ -141,18 +141,18 @@ int8_t read_nec(uint32_t *key)
     switch(k)
     {
         case 0:
-            if (!pressed || read_ticks()-since < 110) return 0;
+            if (!pressed || !expired(timeout)) return 0;
             *key=pressed;
             pressed=0;
             return NEC_RELEASED;
 
         case REPEAT:
-            if (pressed) since=read_ticks();
+            if (pressed) timeout=get_ticks()+110;
             return 0;
 
         default:
             *key = pressed = k;
-            since = read_ticks();
+            timeout=get_ticks()+110;
             return NEC_PRESSED;
     }
 }

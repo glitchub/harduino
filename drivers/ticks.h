@@ -3,12 +3,16 @@
 // instead.
 
 // (Re)start the tick counter with specified initial value
-void start_ticks(uint32_t initial);
+void enable_ticks(uint32_t initial);
 
 // Stop the tick counter
-void stop_ticks(void); 
+void disable_ticks(void); 
 
 // Return ticks (aka milliseconds) since start_ticks, or 0 if counter is
 // stopped. 
-uint32_t read_ticks(void);
+uint32_t get_ticks(void);
 
+// True it tick value t is less than current ticks, i.e. t is a timer
+// that has expired. This works as longer as value of t is within 2^31 ticks
+// of current timer. 
+#define expired(t) ((int32_t)(get_ticks()-(t))>=0)

@@ -10,16 +10,16 @@ ISR(TIMER2_COMPA_vect)
 }
 
 // Stop the tick counter
-void stop_ticks(void)
+void disable_ticks(void)
 {
     TIMSK2 = 0;         // disable interrupt
     TCCR2B = 0;         // disable timer
 }
 
-// (Re)start the tick counter with specified initial value
-void start_ticks(uint32_t initial)
+// (Re)enable the tick counter with specified initial value
+void enable_ticks(uint32_t initial)
 {
-    stop_ticks();
+    disable_ticks();
     TCNT2 = 0;          // start from initial value
     ticks = initial;
     TCCR2A = 2;         // CTC mode
@@ -36,7 +36,7 @@ void start_ticks(uint32_t initial)
 }
 
 // Return tick count since last start_ticks() (or 0 if ticks are stopped).
-uint32_t read_ticks(void)
+uint32_t get_ticks(void)
 {
     uint8_t sreg = SREG;
     cli();

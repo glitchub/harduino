@@ -1,18 +1,16 @@
 // Harduino demo, illustrating tick, serial, lcd, nec, dht11, and sr04 drivers.
-#include <avr/boot.h>
-
 #define LED GPIO13                              // on-board LED 
 
 int main(void)
 {
-    // start drivers
-    start_ticks(0);                             // millisecond ticks
-    FILE *serial = start_serial(115200UL);      // serial I/O
-    FILE *lcd = start_lcd(2,16);                // 2x16 LCD module
-    start_nec();                                // NEC IR
-    start_dht11();                              // Thermal/humidty sense
-    start_sr04();                               // Ultrasonic range
-    sei();          
+    // enable drivers
+    enable_ticks(0);                            // millisecond ticks
+    FILE *serial = enable_serial(115200UL);     // serial I/O
+    FILE *lcd = enable_lcd(2,16);               // 2x16 LCD module
+    enable_nec();                               // NEC IR
+    enable_dht11();                             // Thermal/humidty sense
+    enable_sr04();                              // Ultrasonic range
+    sei();
 
     DDR(LED) |= BIT(LED);                       // Make the LED an output
 
@@ -33,7 +31,7 @@ int main(void)
 
     while(1)
     {
-        uint32_t now=read_ticks()/1000;          // get seconds
+        uint32_t now=get_ticks()/1000;          // get seconds
         if (now != then)                        // if new
         {
             then=now;                           // remember
@@ -58,7 +56,7 @@ int main(void)
             }
             
             // report sr04 range
-            int16_t cm=read_sr04();
+            int16_t cm=get_sr04();
             switch(cm)
             {
                 case -2: fprintf(serial,"sr04 not responding!\r\n"); break;
@@ -70,14 +68,14 @@ int main(void)
             {
                 // every two seconds
                 uint8_t dc, rh, r;
-                r=read_dht11(&dc, &rh);
+                r=get_dht11(&dc, &rh);
                 if (r) fprintf(serial, "DHT error %d\r\n", r);
                 else fprintf(serial, "Temp:%dC RH:%d%%\r\n", dc, rh); 
             }
         }
 
         uint32_t key;
-        if (read_nec(&key)==NEC_PRESSED)
+        if (get_nec(&key)==NEC_PRESSED)
         {
             int8_t n=-1;
             switch(NEC_EVENT(key))
@@ -85,7 +83,7 @@ int main(void)
                 // These are codes for some random "Elegoo" remote. Your codes
                 // will certainly be different.
                 case 0x45:                              // power
-                    start_ticks(input);
+                    enable_ticks(input);
                     input=0;
                     break;
                 case 0x46: break;                       // vol+
