@@ -1,31 +1,29 @@
 // Stepper motor demo
 
 #define LED GPIO13                              // on-board LED
+#define BUTTON GPIOA5                           // push button
 
+// Return true if button is pressed
 static int8_t pressed(void)
 {
     static int8_t was=0;
-    int8_t hi=PIN(GPIOA5) & BIT(GPIOA5);
+    int8_t hi=PIN(BUTTON) & BIT(BUTTON);
     if (hi != was)
     {
         was=hi;
-        waitmS(20);
+        sleep_ticks(20);                        // sleep through button bounce
     }
     return !hi;
 }
 
-FILE *serial;
-
 int main(void)
 {
     enable_ticks(0);
-    serial = enable_serial(115200UL);           // serial I/O
     enable_stepper();
     sei();
 
     DDR(LED) |= BIT(LED);                       // Make the LED an output
-
-    PORT(GPIOA5) |= BIT(GPIOA5);                // pull-up on GPIOA5
+    PORT(BUTTON) |= BIT(BUTTON);                // set pull-up on BUTTON input
     ADMUX = 0x24;                               // prepare for 8-bit A/D conversion on GPIOA4
 
     while(1)
@@ -43,21 +41,25 @@ int main(void)
             ADCSRA = 0xc4;                      // start conversion
             while (ADCSRA & 0x40);              // wait for complete
             uint8_t a = ADCH/8;                 // 0-31
-            if (a <= 14) run_stepper(0, 2<<(14-a) );
-            else if (a >= 17) run_stepper(1, 2<<(a-17) );
-            else run_stepper(0, 0);
+            // 0-14 run forward, 7-31 run backward, 1 to 16384
+            if (a <= 14) run_stepper(1<<(14-a));
+            else if (a >= 17) run_stepper(-(1<<(a-17)));
+            else run_stepper(0);                // or stop
         }
         while (pressed());                      // wait for button release
         PORT(LED) &= ~BIT(LED);                 // toggle the LED
-        while (!pressed())                      // while button not pressed
+        while (1)
         {
-            run_stepper(0,65535);
-            t=get_ticks()+5000;
-            while (!expired(t)) if (pressed()) break;
-            run_stepper(1,65535);
-            t=get_ticks()+5000;
-            while (!expired(t)) if (pressed()) break;
+            run_stepper(4096);
+            while (check_stepper())  if (pressed()) goto out;
+            t=get_ticks()+250;
+            while (!expired(t)) if (pressed()) goto out;
+            run_stepper(-4096);
+            while (check_stepper())  if (pressed()) goto out;
+            t=get_ticks()+250;
+            while (!expired(t)) if (pressed()) goto out;
         }
-        run_stepper(0, 0);
+        out:
+        run_stepper(0);
     }
 }

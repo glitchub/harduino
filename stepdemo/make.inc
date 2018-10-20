@@ -1,7 +1,7 @@
 # Stepper project 
 
 # Drivers
-FILES=wait ticks serial stepper
+FILES=ticks stepper
 
 # CPU
 CHIP=atmega328p

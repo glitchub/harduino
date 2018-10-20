@@ -14,22 +14,22 @@ GOAL=$(firstword $(MAKECMDGOALS))
 ifneq ($(filter $(GOAL),$(PROJECTS)),)
     PROJECT:=$(GOAL)
 else
-    # default to last project
-    PROJECT:=$(shell readlink .*.ln 2>/dev/null)
+    # default to current project
+    PROJECT:=$(subst .current.,,$(wildcard .current.*))
 endif
 
 ifneq (${PROJECT},)
 
-# project-specific rules go here
+CFLAGS=-g -Os -Wall -Werror -std=gnu99 --save-temps
 
 include ${PROJECT}/make.inc
 
 VPATH=${PROJECT} drivers
 
 .PHONY: ${PROJECT} default
-${PROJECT} default: .${PROJECT}.ln ${PROJECT}.hex
+${PROJECT} default: .current.${PROJECT} ${PROJECT}.hex
 
-.${PROJECT}.ln: distclean; ln -sf ${PROJECT} $@
+.current.${PROJECT}:; make distclean && touch $@
 
 ${PROJECT}.hex: ${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
 
@@ -39,7 +39,7 @@ ${PROJECT}.elf: main.o $(addsuffix .o,${FILES})
 	${PREFIX}size $@
 
 %.o: %.c %.h ${PROJECT}/main.h
-	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h -g -Os -Wall -Werror -std=gnu99 --save-temps -c -o $@ $< 
+	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h -c ${CFLAGS} -c -o $@ $< 
 
 .PHONY: install download 
 install download: ${PROJECT}.hex; ./download -c ${CHIP} $<
@@ -48,15 +48,15 @@ endif
 
 # generic rules go here, help should be first
 define help 
-echo "Current project    : $(if ${PROJECT},${PROJECT},NOT DEFINED!)"
-echo "Available projects : ${PROJECTS}"
+echo 'Current project    : $(if ${PROJECT},${PROJECT},NOT DEFINED!)'
+echo 'Available projects : ${PROJECTS}'
 echo 
-echo "make project-name  - set the current project and build it"
-echo "make               - rebuild the current project"
-echo "make download      - build and download the current project to target Arduino"
-echo "make clean         - remove generated files for the current project"
-echo "make distclean     - make clean and forget about the current project"
-echo "make help          - (or any invalid target) print this text"
+echo 'make project-name  - remember project-name as "current", and build it'
+echo 'make               - build current project'
+echo 'make download      - build and download current project to target Arduino'
+echo 'make clean         - remove generated files for current project'
+echo 'make distclean     - same as above but also forget "current"'
+echo 'make help          - (or any invalid target) print this text'
 endef
 
 .PHONY: help
@@ -66,7 +66,7 @@ help:; @$(call help)
 clean:; rm -f *.o *.elf *.hex *.lst *.map *.s *.i 
 
 .PHONY: distclean
-distclean: clean; rm -f .*.ln
+distclean: clean; rm -f .current.*
 
 # any unknown target
-.DEFAULT:; @$(call help)
+.DEFAULT:; @echo "Unknown target: $@"; echo; $(call help)

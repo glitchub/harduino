@@ -1,16 +1,19 @@
 // Stepper motor support
 
-// Disable driver and release pins.  
+// Disable driver and release pins.
 void disable_stepper(void);
 
 // Enable driver in preparation for calls to run_stepper().
 void enable_stepper(void);
 
-// Given direction 1=forward or 0=backward, and number of steps, (re)start the
-// stepper, or stop it if steps == 0. Returns ASAP, the stepper runs in the
-// background. Maximum steps is 65535, you're expected to keep restarting if you
-// don't want the stepper to stop.
-void run_stepper(uint8_t direction, uint16_t steps);
+// Given number of steps, (re)start the stepper. Step forward if steps > 0,
+// backwards if steps < 0, or stop if steps==0. If changing direction, may
+// block up to 16mS. Otherwise the stepper runs in background and stops
+// automatically when specified steps have been made. The maximum value for
+// steps is +/-32767, keep calling this periodicially if you don't want the
+// stepper to stop.
+// This function WILL turn interrupts on!!
+void run_stepper(int16_t steps);
 
-// Return true if stepper running, false if not.
-int8_t check_stepper(void);
+// True if stepper is running, false if not.
+#define check_stepper() (TIMSK0!=0)

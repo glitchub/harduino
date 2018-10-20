@@ -7,15 +7,9 @@
 #error "STEPPER_SLOW_HZ or STEPPER_FAST_HZ out of range"
 #endif
 
-// timer ticks corresponding to minimum and maximum stepper frequency
+// timer ticks corresponding to minimum and maximum stepper frequency (round up, to lower frequency)
 #define FAST_CLOCKS ((FMAX+STEPPER_FAST_HZ-1)/STEPPER_FAST_HZ)
 #define SLOW_CLOCKS ((FMAX+STEPPER_SLOW_HZ-1)/STEPPER_SLOW_HZ)
-#if FAST_CLOCKS < 2
-#error "FAST_CLOCKS out of range"
-#endif
-#if SLOW_CLOCKS > 254
-#error "SLOW_CLOCKS out of range"
-#endif
 
 // steps required to decelerate the stepper from fast to slow
 #define STOP_STEPS (SLOW_CLOCKS-FAST_CLOCKS)
@@ -42,14 +36,14 @@ static uint8_t phases[8] = { NORTH, NORTH|EAST, EAST, SOUTH|EAST, SOUTH, SOUTH|W
 #error "Must define STEPPER_PHASES 4 or 8"
 #endif
 
-static volatile int8_t direction;       // 1 = step formward, 0 = step backward
+static volatile int8_t forward;         // 1 = step forward, 0 = step backward
 static volatile uint16_t steps;         // number of steps to make
 static volatile uint8_t clocks;         // clocks per step, the update frequency
 static volatile uint8_t phase=0;        // current motor phase
 
 ISR(TIMER0_COMPA_vect)
 {
-    if (!steps)
+    if (!steps--)
     {
         TIMSK0 = 0;                     // disable interrupt
         TCCR0B = 0;                     // disable timer
@@ -62,7 +56,7 @@ ISR(TIMER0_COMPA_vect)
     }
 
     // advance to next
-    if (direction) phase++; else phase--;
+    if (forward) phase++; else phase--;
 
     // energize coils of interest
     uint8_t p = phases[phase % STEPPER_PHASES];
@@ -71,20 +65,19 @@ ISR(TIMER0_COMPA_vect)
     if (p & SOUTH) PORT(STEPPER_S) |= BIT(STEPPER_S); else PORT(STEPPER_S) &= ~BIT(STEPPER_S);
     if (p & WEST) PORT(STEPPER_W) |= BIT(STEPPER_W); else  PORT(STEPPER_W) &= ~BIT(STEPPER_W);
 
-    OCR0A = TCNT0+clocks-1;             // schedule next interrupt
-
-    steps--;
-    if (steps < STOP_STEPS)             // if near the end
+    if (clocks < SLOW_CLOCKS-steps)     // decelerate near the end
     {
-        uint8_t c = SLOW_CLOCKS - steps;
-                                        // maybe decelerate
-        if (clocks < c) clocks=c;
+        clocks = SLOW_CLOCKS-steps;
+        OCR0A = TCNT0+clocks-1;         // schedule next interrupt
     }
     else                                // else maybe accelerate
+    {
+        OCR0A = TCNT0+clocks-1;         // schedule next interrupt
         if (clocks > FAST_CLOCKS) clocks--;
+    }
 }
 
-// Disable stepper driver and release inputs.
+// Disable stepper driver and release inputs. Should not be called while stepper is running.
 void disable_stepper(void)
 {
     TIMSK0 = 0;
@@ -100,7 +93,7 @@ void disable_stepper(void)
     DDR(STEPPER_W) &= ~BIT(STEPPER_W);
 }
 
-// Enable stepper driver
+// Enable stepper driver. Should not be called while stepper is running.
 void enable_stepper(void)
 {
     disable_stepper();
@@ -110,17 +103,28 @@ void enable_stepper(void)
     DDR(STEPPER_W) |= BIT(STEPPER_W);
 }
 
-// Given direction 1=forward or 0=backward, and number of steps, (re)start the
-// stepper, or stop it if steps == 0. Returns ASAP, the stepper runs in the
-// background. Maximum steps is 65535, you're expected to keep calling this
-// function if you don't want the stepper to stop.
-// This function WILL turn interrupts on!!
-void run_stepper(uint8_t d, uint16_t s)
+// Given number of steps, (re)start the stepper. Step forward if steps > 0,
+// backwards if steps < 0, or stop if steps==0.
+//
+// The stepper runs in background and stops automatically when specified steps
+// have been made.
+//
+// The maximum step value is +/-32767, keep calling run_stepper() periodicially
+// to renew the step count if you don't want the stepper to stop.
+//
+// If the stepper is currently running and you try to change direction, then
+// this function may block up to 16 mS. You can avoid this by stopping the
+// stepper, wait for it to stop, then start in the other direction.
+//
+// This WILL turn interrupts on!!
+void run_stepper(int16_t s)
 {
+    int8_t f=1;                         // forward if positive
+    if (s < 0) f=0, s=-s;               // backward if negative
     cli();
     if (TIMSK0)
     {
-        if (!s || d==direction)
+        if (!s || f == forward)
         {
             // already going in the right direction
             if (s > STOP_STEPS) steps = s;
@@ -129,29 +133,23 @@ void run_stepper(uint8_t d, uint16_t s)
             sei();
             return;
         }
-        // else we have to go the other way, stop first
+        // oops we have to go the other way
         if (steps > STOP_STEPS) steps=STOP_STEPS;
-        sei();                          // here we have to turn interrupts on
-        while (TIMSK0);                 // wait for it...
+        sei();
+        while (TIMSK0);                 // Spin here until motor stops...
     } else
     {
         sei();
         if (!s) return;
     }
-    direction = d;                      // Set direction
+    forward = f;                        // Set direction
     steps = s;                          // Set steps
-    clocks = SLOW_CLOCKS;               // Start slow
+    clocks = SLOW_CLOCKS;               // Start at slowest speed
     TCCR0B = 0;                         // Stop timer
     TCNT0 = 0;                          // Count from now
-    OCR0A = 1;                          // Interrupt immediately
+    OCR0A = 1;                          // Interrupt soon
     TIFR0 = 0xff;                       // But not yet
     TCCR0A = 0;                         // Normal mode
     TCCR0B = 5;                         // Run timer at F_CPU/1024
     TIMSK0 = 2;                         // Enable OCIE0A interrupt
-}
-
-// Returns true if stepper is currently running, 0 if stopped.
-int8_t check_stepper(void)
-{
-    return TIMSK0?1:0;
 }

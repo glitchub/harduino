@@ -124,12 +124,12 @@ void enable_lcd(uint8_t l, uint8_t c)
     send(CMD4, 0x30);
 
     // Initialize into 4-bit mode
-    send(CMD4, 0x20);                          // set 4-bit interface
+    send(CMD4, 0x20);                     // set 4-bit interface
     send(CMD8, (lines==1) ? 0x20 : 0x28); // function set: 4-bit, N lines, 5x8
-    send(CMD8, 0x0c);                          // display control: lcd on, cursor off, blink off
-    send(CMD8, 0x06);                          // entry mode set: cursor increment, no shift
-    send(CMD8, 0x01);                          // clear display
-    waituS(1500);                                   // let clear take affect
+    send(CMD8, 0x0c);                     // display control: lcd on, cursor off, blink off
+    send(CMD8, 0x06);                     // entry mode set: cursor increment, no shift
+    send(CMD8, 0x01);                     // clear display
+    waituS(1500);                         // let clear take affect
 #ifdef LCD_STDIO
     return &handle;
 #endif
