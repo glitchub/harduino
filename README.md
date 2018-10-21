@@ -25,19 +25,7 @@ Drivers:
     The drivers directory also contains pin definitions for each known Arduino
     board, for example uno_r3.h.
 
-Make argets:
+Make targets:
 
-    To build a particular project for the first time, run "make
-    PROJECT=basename". This will create a symlink to the project directory, so
-    you don't need to specify PROJECT again (unless you want to build a
-    different project).
-
-    Other targets include:
-
-        make download - download the project hex file. You can also run the
-        "download" script directly if you need to specify a differnt serial
-        device.
-
-        make clean - remove generated files
-
-        make spotless - remove generated files and the .project.ln symlink.
+    Run "make help" for description of supported targets including how to specify
+    what project to build.
