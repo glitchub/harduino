@@ -1,10 +1,7 @@
 // Receive NEC IR
 
-// Disable NEC IR receiver and release pins
-void disable_nec(void);
-
-// (Re)enable NEC IR receiver
-void enable_nec(void);
+// Init NEC IR receiver
+void init_nec(void);
 
 #define NEC_PRESSED 1       // key just pressed
 #define NEC_RELEASED 2      // key released (repeat timeout)

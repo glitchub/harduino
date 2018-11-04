@@ -6,10 +6,10 @@
 #endif
 
 // Initialize
-void enable_dht11(void)
+void init_dht11(void)
 {
-    DDR(DHT11_IO) &= ~BIT(DHT11_IO);    // just make sure our pin in an input
-    PORT(DHT11_IO) &= ~BIT(DHT11_IO);   // and will drive low when an output
+    DDR(DHT11_IO) &= NOBIT(DHT11_IO);                                           // Make sure our pin in an input
+    PORT(DHT11_IO) &= NOBIT(DHT11_IO);                                          // and will drive low when an output
 }
 
 // Read DHT11 and set dc = degrees C and rh = relative humidity percent and
@@ -19,8 +19,8 @@ int8_t get_dht11(uint8_t *dc, uint8_t *rh)
     uint8_t l1, l2, d[5];
 
     DDR(DHT11_IO) |= BIT(DHT11_IO);                                             // First drive the I/O low
-    waitmS(18);                                                                 // For 18 mS
-    DDR(DHT11_IO) &= ~BIT(DHT11_IO);                                            // Then back to input
+    sleep_ticks(18);                                                            // For 18 mS
+    DDR(DHT11_IO) &= NOBIT(DHT11_IO);                                           // Then back to input
     __asm__ __volatile__("nop; nop;");                                          // allow some time for pin to pull high
 
     // Note these are 6 cycles/loop, so max pulse at 16Mhz = 6*255/16 = 95 uS
@@ -37,5 +37,5 @@ int8_t get_dht11(uint8_t *dc, uint8_t *rh)
     if (((d[0]+d[1]+d[2]+d[3]) & 255) != d[4]) return 6;                        // if checksum is valid
     *dc=d[2];                                                                   // then set degrees C
     *rh=d[0];                                                                   // and relative humidity
-    return 0;                                                                   // and return 1
+    return 0;                                                                   // and return success
 }

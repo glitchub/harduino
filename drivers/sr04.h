@@ -1,11 +1,8 @@
 // Support for SR04 ultrasonic ranging module, requires an output pin for
 // trigger and an input pin for echo.
 
-// Disable driver and release pins
-void disable_sr04(void);
-
 // Initialize the SR04 pins
-void enable_sr04(void);
+void init_sr04(void);
 
 // Trigger SR04 measurement cycle, return distance in cm, or -1 if timeout, or
 // -2 if device did not respond. This function may block up to 25 milliseconds,

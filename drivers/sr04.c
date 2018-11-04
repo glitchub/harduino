@@ -9,17 +9,10 @@
 #error "Must define pins SR04_TRIG and SR04_ECHO"
 #endif
 
-void disable_sr04(void)
-{
-    DDR(SR04_TRIG) &= ~BIT(SR04_TRIG);
-    DDR(SR04_ECHO) &= ~BIT(SR04_ECHO);
-    PORT(SR04_TRIG) &= ~BIT(SR04_TRIG);
-    PORT(SR04_ECHO) &= ~BIT(SR04_ECHO);
-}
+#include "waituS.h"
 
-void enable_sr04(void)
+void init_sr04(void)
 {
-    disable_sr04();
     DDR(SR04_TRIG) |= BIT(SR04_TRIG); // trigger is an output
 }
 
@@ -34,7 +27,7 @@ int16_t get_sr04(void)
     uint16_t loops;
     PORT(SR04_TRIG) |= BIT(SR04_TRIG);
     waituS(10);
-    PORT(SR04_TRIG) &= ~BIT(SR04_TRIG);
+    PORT(SR04_TRIG) &= NOBIT(SR04_TRIG);
     // wait 1mS for ECHO to go high
     loops=1000*uS;
     while (!(PIN(SR04_ECHO) & BIT(SR04_ECHO))) { if (!--loops) return -2; __asm__ __volatile__ ("nop\n\tnop"); } // loop is 8 cycles

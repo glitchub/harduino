@@ -6,5 +6,5 @@ PREFIX=avr-
 # CPU
 CHIP=atmega328p
 
-# Files to build, other than main.
-FILES=wait ticks lcd serial nec dht11 sr04
+# Drivers/files to build other than main
+FILES=ticks lcd serial nec dht11 sr04

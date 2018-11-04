@@ -36,22 +36,22 @@ static uint8_t phases[8] = { NORTH, NORTH|EAST, EAST, SOUTH|EAST, SOUTH, SOUTH|W
 #error "Must define STEPPER_PHASES 4 or 8"
 #endif
 
-static volatile int8_t forward;         // 1 = step forward, 0 = step backward
-static volatile uint16_t steps;         // number of steps to make
-static volatile uint8_t clocks;         // clocks per step, the update frequency
-static volatile uint8_t phase=0;        // current motor phase
+static volatile int8_t forward;             // 1 = step forward, 0 = step backward
+static volatile uint16_t steps;             // number of steps to make
+static volatile uint8_t clocks;             // clocks per step, the update frequency
+static volatile uint8_t phase=0;            // current motor phase
 
 ISR(TIMER0_COMPA_vect)
 {
     if (!steps--)
     {
-        TIMSK0 = 0;                     // disable interrupt
-        TCCR0B = 0;                     // disable timer
+        TIMSK0 = 0;                         // disable interrupt
+        TCCR0B = 0;                         // disable timer
         // coils off
-        PORT(STEPPER_N) &= ~BIT(STEPPER_N);
-        PORT(STEPPER_E) &= ~BIT(STEPPER_E);
-        PORT(STEPPER_S) &= ~BIT(STEPPER_S);
-        PORT(STEPPER_W) &= ~BIT(STEPPER_W);
+        PORT(STEPPER_N) &= NOBIT(STEPPER_N);
+        PORT(STEPPER_E) &= NOBIT(STEPPER_E);
+        PORT(STEPPER_S) &= NOBIT(STEPPER_S);
+        PORT(STEPPER_W) &= NOBIT(STEPPER_W);
         return;
     }
 
@@ -60,44 +60,31 @@ ISR(TIMER0_COMPA_vect)
 
     // energize coils of interest
     uint8_t p = phases[phase % STEPPER_PHASES];
-    if (p & NORTH) PORT(STEPPER_N) |= BIT(STEPPER_N); else PORT(STEPPER_N) &= ~BIT(STEPPER_N);
-    if (p & EAST) PORT(STEPPER_E) |= BIT(STEPPER_E); else PORT(STEPPER_E) &= ~BIT(STEPPER_E);
-    if (p & SOUTH) PORT(STEPPER_S) |= BIT(STEPPER_S); else PORT(STEPPER_S) &= ~BIT(STEPPER_S);
-    if (p & WEST) PORT(STEPPER_W) |= BIT(STEPPER_W); else  PORT(STEPPER_W) &= ~BIT(STEPPER_W);
+    if (p & NORTH) PORT(STEPPER_N) |= BIT(STEPPER_N); else PORT(STEPPER_N) &= NOBIT(STEPPER_N);
+    if (p & EAST) PORT(STEPPER_E) |= BIT(STEPPER_E); else PORT(STEPPER_E) &= NOBIT(STEPPER_E);
+    if (p & SOUTH) PORT(STEPPER_S) |= BIT(STEPPER_S); else PORT(STEPPER_S) &= NOBIT(STEPPER_S);
+    if (p & WEST) PORT(STEPPER_W) |= BIT(STEPPER_W); else  PORT(STEPPER_W) &= NOBIT(STEPPER_W);
 
-    if (clocks < SLOW_CLOCKS-steps)     // decelerate near the end
+    if (clocks < SLOW_CLOCKS-steps)         // decelerate near the end
     {
         clocks = SLOW_CLOCKS-steps;
-        OCR0A = TCNT0+clocks-1;         // schedule next interrupt
+        OCR0A = TCNT0+clocks-1;             // schedule next interrupt
     }
-    else                                // else maybe accelerate
+    else                                    // else maybe accelerate
     {
-        OCR0A = TCNT0+clocks-1;         // schedule next interrupt
+        OCR0A = TCNT0+clocks-1;             // schedule next interrupt
         if (clocks > FAST_CLOCKS) clocks--;
     }
 }
 
-// Disable stepper driver and release inputs. Should not be called while stepper is running.
-void disable_stepper(void)
+// Enable stepper driver
+void init_stepper(void)
 {
-    TIMSK0 = 0;
-    TCCR0B = 0;
-    TIFR0 = 0xff;                       // clear pending interrupts
-    PORT(STEPPER_N) &= ~BIT(STEPPER_N); // coils off
-    PORT(STEPPER_E) &= ~BIT(STEPPER_E);
-    PORT(STEPPER_S) &= ~BIT(STEPPER_S);
-    PORT(STEPPER_W) &= ~BIT(STEPPER_W);
-    DDR(STEPPER_N) &= ~BIT(STEPPER_N);  // set as inputs
-    DDR(STEPPER_E) &= ~BIT(STEPPER_E);
-    DDR(STEPPER_S) &= ~BIT(STEPPER_S);
-    DDR(STEPPER_W) &= ~BIT(STEPPER_W);
-}
-
-// Enable stepper driver. Should not be called while stepper is running.
-void enable_stepper(void)
-{
-    disable_stepper();
-    DDR(STEPPER_N) |= BIT(STEPPER_N);   // set as outputs
+    PORT(STEPPER_N) &= NOBIT(STEPPER_N);    // coils off
+    PORT(STEPPER_E) &= NOBIT(STEPPER_E);
+    PORT(STEPPER_S) &= NOBIT(STEPPER_S);
+    PORT(STEPPER_W) &= NOBIT(STEPPER_W);
+    DDR(STEPPER_N) |= BIT(STEPPER_N);       // set as outputs
     DDR(STEPPER_E) |= BIT(STEPPER_E);
     DDR(STEPPER_S) |= BIT(STEPPER_S);
     DDR(STEPPER_W) |= BIT(STEPPER_W);
@@ -119,8 +106,8 @@ void enable_stepper(void)
 // This WILL turn interrupts on!!
 void run_stepper(int16_t s)
 {
-    int8_t f=1;                         // forward if positive
-    if (s < 0) f=0, s=-s;               // backward if negative
+    int8_t f=1;                             // forward if positive
+    if (s < 0) f=0, s=-s;                   // backward if negative
     cli();
     if (TIMSK0)
     {
@@ -136,20 +123,24 @@ void run_stepper(int16_t s)
         // oops we have to go the other way
         if (steps > STOP_STEPS) steps=STOP_STEPS;
         sei();
-        while (TIMSK0);                 // Spin here until motor stops...
+#ifndef THREADED
+        while (TIMSK0);                     // Spin here until motor stops...
+#else
+        while (TIMSK0) yield();
+#endif
     } else
     {
         sei();
         if (!s) return;
     }
-    forward = f;                        // Set direction
-    steps = s;                          // Set steps
-    clocks = SLOW_CLOCKS;               // Start at slowest speed
-    TCCR0B = 0;                         // Stop timer
-    TCNT0 = 0;                          // Count from now
-    OCR0A = 1;                          // Interrupt soon
-    TIFR0 = 0xff;                       // But not yet
-    TCCR0A = 0;                         // Normal mode
-    TCCR0B = 5;                         // Run timer at F_CPU/1024
-    TIMSK0 = 2;                         // Enable OCIE0A interrupt
+    forward = f;                            // Set direction
+    steps = s;                              // Set steps
+    clocks = SLOW_CLOCKS;                   // Start at slowest speed
+    TCCR0B = 0;                             // Stop timer
+    TCNT0 = 0;                              // Count from now
+    OCR0A = 1;                              // Interrupt soon
+    TIFR0 = 0xff;                           // But not yet
+    TCCR0A = 0;                             // Normal mode
+    TCCR0B = 5;                             // Run timer at F_CPU/1024
+    TIMSK0 = 2;                             // Enable OCIE0A interrupt
 }

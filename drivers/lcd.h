@@ -12,19 +12,15 @@
 //   \v - clear text to end of line
 void write_lcd(int8_t c);
 
-// Disable the driver, release all pins. Does not change current
-// state of the LCD.
-void disable_lcd(void);
-
 // Initialize LCD module with visible columns and rows (line shifting is not
 // supported).
 #ifdef LCD_STDIO
-// If LCD_STDIO is defined then enable_lcd() returns a FILE* that can be used
+// If LCD_STDIO is defined then init_lcd() returns a FILE* that can be used
 // with fprintf, etc. Note the use of stdio adds at least 1Kb to the target
 // image.
 #include <stdio.h>
-FILE *enable_lcd(uint8_t lines, uint8_t columns);
+FILE *init_lcd(uint8_t lines, uint8_t columns);
 #else
-void enable_lcd(uint8_t lines, uint8_t columns);
+void init_lcd(uint8_t lines, uint8_t columns);
 #endif
 

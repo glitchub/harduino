@@ -2,28 +2,108 @@
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
 
-
-// Accrue ticks, the counter will wrap about every 50 days.
-static volatile uint32_t ticks;
+static volatile uint32_t ticks;             // Accrue ticks, the counter will wrap about every 50 days.
+#ifdef THREADED
+static semaphore tick_sem;                  //Also wake ticket thread
+#endif
 ISR(TIMER2_COMPA_vect)
 {
     ticks++;
+#ifdef THREADED
+    release(&tick_sem);
+#endif
 }
 
-// Stop the tick counter
-void disable_ticks(void)
+#ifdef THREADED
+// context for sleeping thread
+volatile struct sleeper
 {
-    TIMSK2 = 0;         // disable interrupt
-    TCCR2B = 0;         // disable timer
-    ticks=0;
+    struct sleeper *next;                   // Link to next sleeper, this must be first
+    uint32_t ticks;                         // How many ticks remain
+    semaphore sem;                          // What sleeping thread is suspended on
+} sleeper;
+
+// linked list of sleeper structs
+static struct sleeper *sleeping;
+
+// This is the tick interrupt "bottom half", release sleeping threads with
+// expired timers.
+uint8_t ticket_stack[64];
+static void ticket(void)
+{
+    while(1)
+    {
+        suspend(&tick_sem);                 // suspend until interrupt
+        if (!sleeping) continue;
+        sleeping->ticks--;                  // decrement first sleeping thread
+        while (sleeping->ticks <= 0)        // expired?
+        {
+            release(&(sleeping->sem));      // release it
+            sleeping=sleeping->next;        // advance to next sleeper
+            if (!sleeping) break;           // none left?
+        }
+    }
 }
 
-// (Re)enable the tick counter with specified initial value
-void enable_ticks(uint32_t initial)
+// Suspend calling thread for specified number of ticks. The sleeping list is
+// sorted in order of next thread to expire.
+void sleep_ticks(int32_t t)
 {
-    disable_ticks();
+    struct sleeper s;                       // note this is on the stack
+    memset(&s, 0, sizeof s);
+    s.ticks=t;
+
+    if (!sleeping)                          // nobody sleeping?
+    {
+        sleeping = &s;                      // now there is
+    } else
+    {
+        struct sleeper **sp = &sleeping;    // for each sleeping thread
+        while (1)
+        {
+            if ((*sp)->ticks < s.ticks)     // if they expire before us
+            {
+                s.ticks -= (*sp)->ticks;    // we go after, decrement our count
+                if (!(*sp)->next)           // end of list?
+                {
+                    (*sp)->next=&s;         // just link us in
+                    break;
+                }
+                sp=*(void **)sp;            // else keep descending
+            }
+            else
+            {
+                (*sp)->ticks -= s.ticks;    // they expire after us, adjust their count
+                s.next=(*sp);               // and insert us
+                *sp=&s;
+                break;
+            }
+        }
+    }
+    suspend(&s.sem);                       // suspend here until tick thread releases us
+}
+#else
+// Not threaded, spin for specified ticks, sleeps if sleep_mode() has been set
+#include <avr/sleep.h>
+void sleep_ticks(int32_t t)
+{
+    cli();
+    uint32_t u=ticks+t;
+    while ((uint32_t)(ticks-u)>0)   // while not expired
+    {
+        sei();
+        sleep_cpu();                // no-op if sleep not enabled
+        cli();
+    }
+    sei();
+}
+#endif
+
+// Enable the tick interrupt
+void init_ticks(void)
+{
     TCNT2 = 0;          // start from initial value
-    ticks = initial;
+    ticks = 0;
     TCCR2A = 2;         // CTC mode
 #if F_CPU==16000000L
     OCR2A = 249;        // interrupt every 250 clocks
@@ -35,9 +115,12 @@ void enable_ticks(uint32_t initial)
 #error "F_CPU not supported"
 #endif
     TIMSK2 = 2;         // enable OCIE2A interrupt
+#ifdef  THREADED
+    init_thread(ticket, ticket_stack, sizeof ticket_stack);
+#endif
 }
 
-// Return tick count since last start_ticks() (or 0 if ticks are stopped).
+// Return running tick count
 uint32_t get_ticks(void)
 {
     uint8_t sreg = SREG;
@@ -45,22 +128,4 @@ uint32_t get_ticks(void)
     uint32_t t=ticks;
     SREG = sreg;
     return t;
-}
-
-// Sleep for specified ticks
-#include <avr/sleep.h>
-void sleep_ticks(int32_t t)
-{
-    set_sleep_mode(0);              // enable sleep
-    sleep_enable();
-    cli();
-    uint32_t u=ticks+t;
-    while ((uint32_t)(ticks-u)>0)   // while not expired
-    {
-        sei();                      // sleep
-        sleep_cpu();
-        cli();
-    }
-    sei();
-    sleep_disable();                // disable sleep
 }

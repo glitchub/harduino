@@ -1,5 +1,5 @@
 // Demo project definitions
- 
+
 #include <stdint.h>
 #include <string.h>
 #include <avr/io.h>
@@ -8,10 +8,7 @@
 
 // Using UNO R3
 #define F_CPU 16000000      // 16Mhz
-#include "uno_r3.h"     
-
-// inline waituS and waitmS functions
-#include "wait.h"
+#include "uno_r3.h"
 
 // millisecond tick driver
 #include "ticks.h"
@@ -24,9 +21,9 @@
 
 // NEC IR, detector attaches to ICP1 aka GPIO08.
 #define NEC_IDLE 1          // Detector output high when not receiving a pulse
-#include "nec.h" 
+#include "nec.h"
 
-// LCD module 
+// LCD module
 #define LCD_STDIO           // enable file handle for fprintf
 #define LCD_D4 GPIO03       // Outputs
 #define LCD_D5 GPIO04

@@ -18,13 +18,14 @@ static int8_t pressed(void)
 
 int main(void)
 {
-    enable_ticks(0);
-    enable_stepper();
-    sei();
+    init_ticks();
+    init_stepper();
 
     DDR(LED) |= BIT(LED);                       // Make the LED an output
     PORT(BUTTON) |= BIT(BUTTON);                // set pull-up on BUTTON input
     ADMUX = 0x24;                               // prepare for 8-bit A/D conversion on GPIOA4
+
+    sei();
 
     while(1)
     {
@@ -35,7 +36,7 @@ int main(void)
         {
             if (expired(t))
             {
-                PIN(LED) |= BIT(LED);
+                PIN(LED) = BIT(LED);
                 t+=100;
             }
             ADCSRA = 0xc4;                      // start conversion

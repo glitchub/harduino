@@ -4,24 +4,27 @@
 // or A1-A5.
 
 // BITN(GPIOXX) gives the gpio's bit as a value 0-7
-#define _BITN_(bit, pin, ddr, port) bit
+#define _BITN_(bit, pin, ddr, port) (bit)
 #define BITN(...) _BITN_(__VA_ARGS__)
 
 // BIT(GPIOXX) gives the gpio's bit mask as a power of 2, 0x01 to 0x80 (aka bit
-// vector)
+// vector).
 #define BIT(...) (1<<BITN(__VA_ARGS__))
-#define BITM(...) (BIT(__VA_ARGS))
+
+// NOBIT(GPIOXX) gits the gpio's inverted bitmask, cast to avoid promotion to
+// int.
+#define NOBIT(...)((uint8_t)~(BIT(__VA_ARGS__)))
 
 // PIN(GPIOXX) gives the gpio's PIN register address
-#define _PIN_(bit, pin, ddr, port) pin
+#define _PIN_(bit, pin, ddr, port) (pin)
 #define PIN(...) _PIN_(__VA_ARGS__)
 
 // DDR(GPIOXX) gives the gpio's DDR register address
-#define _DDR_(bit, pin, ddr, port) ddr
+#define _DDR_(bit, pin, ddr, port) (ddr)
 #define DDR(...) _DDR_(__VA_ARGS__)
 
 // PORT(GPIOXX) gives the gpio's PORT register address
-#define _PORT_(bit, pin, ddr, port) port
+#define _PORT_(bit, pin, ddr, port) (port)
 #define PORT(...) _PORT_(__VA_ARGS__)
 
 #define GPIO00 PD0, PIND, DDRD, PORTD

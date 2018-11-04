@@ -2,17 +2,13 @@
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
 
-// (Re)start the tick counter with specified initial value
-void enable_ticks(uint32_t initial);
+// Setup tick interrupt and start counting ticks
+void init_ticks(void);
 
-// Stop the tick counter
-void disable_ticks(void);
-
-// Return ticks (aka milliseconds) since start_ticks, or 0 if counter is
-// stopped.
+// Return ticks (aka milliseconds) since init_ticks
 uint32_t get_ticks(void);
 
-// Sleep for specified ticks
+// Sleep for specified ticks. If threading, the calling thread is suspended.
 void sleep_ticks(int32_t ticks);
 
 // True it tick value t is less than current ticks, i.e. t is a timer

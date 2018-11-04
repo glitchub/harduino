@@ -1,15 +1,15 @@
 // Harduino demo, illustrating tick, serial, lcd, nec, dht11, and sr04 drivers.
-#define LED GPIO13                              // on-board LED 
+#define LED GPIO13                              // on-board LED
 
 int main(void)
 {
-    // enable drivers
-    enable_ticks(0);                            // millisecond ticks
-    FILE *serial = enable_serial(115200UL);     // serial I/O
-    FILE *lcd = enable_lcd(2,16);               // 2x16 LCD module
-    enable_nec();                               // NEC IR
-    enable_dht11();                             // Thermal/humidty sense
-    enable_sr04();                              // Ultrasonic range
+    // init drivers
+    init_ticks();                               // millisecond ticks
+    FILE *serial = init_serial(115200UL);       // serial I/O
+    FILE *lcd = init_lcd(2,16);                 // 2x16 LCD module
+    init_nec();                                 // NEC IR
+    init_dht11();                               // Thermal/humidty sense
+    init_sr04();                                // Ultrasonic range
     sei();
 
     DDR(LED) |= BIT(LED);                       // Make the LED an output
@@ -17,9 +17,9 @@ int main(void)
     fprintf(lcd, "\fBooting...\n");             // \f == home cursor
 
     fprintf(serial, "Booting...\r\n");          // terminal always requires crlf
-    
+
     // get fuses
-    cli();                                      
+    cli();
     uint8_t exfuse = boot_lock_fuse_bits_get(GET_EXTENDED_FUSE_BITS);
     uint8_t lock = boot_lock_fuse_bits_get(GET_LOCK_BITS);
     uint8_t hifuse = boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS);
@@ -35,7 +35,7 @@ int main(void)
         if (now != then)                        // if new
         {
             then=now;                           // remember
-            PIN(LED) |= BIT(LED);               // toggle the LED
+            PIN(LED) = BIT(LED);                // toggle the LED
 
             uint8_t d=now / 86400UL;
             uint8_t h=(now % 86400UL) / 3600;
@@ -54,7 +54,7 @@ int main(void)
                 do fputc(fgetc(serial), serial); while (readable_serial());
                 fprintf(serial, "\"?\r\n");
             }
-            
+
             // report sr04 range
             int16_t cm=get_sr04();
             switch(cm)
@@ -62,15 +62,15 @@ int main(void)
                 case -2: fprintf(serial,"sr04 not responding!\r\n"); break;
                 case -1: fprintf(serial,"sr04 range: unknown\r\n"); break;
                 default: fprintf(serial,"sr04 range: %d cm\r\n", cm);
-            }    
+            }
 
             if (now & 1)
             {
                 // every two seconds
                 uint8_t dc, rh, r;
                 r=get_dht11(&dc, &rh);
-                if (r) fprintf(serial, "DHT error %d\r\n", r);
-                else fprintf(serial, "Temp:%dC RH:%d%%\r\n", dc, rh); 
+                if (r) fprintf(serial, "dht11 error %d\r\n", r);
+                else fprintf(serial, "dht11 temp: %dC, RH: %d%%\r\n", dc, rh);
             }
         }
 
@@ -83,7 +83,6 @@ int main(void)
                 // These are codes for some random "Elegoo" remote. Your codes
                 // will certainly be different.
                 case 0x45:                              // power
-                    enable_ticks(input);
                     input=0;
                     break;
                 case 0x46: break;                       // vol+
@@ -94,7 +93,7 @@ int main(void)
                 case 0x40: break;                       // play
                 case 0x43: break;                       // ffwd
                 case 0x07: break;                       // down
-                case 0x15: break;                       // vol -
+                case 0x15: break;                       // vol-
                 case 0x09: break;                       // up
                 case 0x16: n=0; break;                  // 0
                 case 0x19: break;                       // eq

@@ -1,13 +1,13 @@
 Harduino - support for Arduino hardware without the Arduino IDE.
 
-Requires avr-gcc and friends, and avrdude downloader.
+Requires avr-gcc/binutils, and the avrdude downloader.
 
 Projects:
-    
+
     Each project has its own directory, containing at least main.c, main.h, and
     make.inc.
 
-    main.c must, of course, contain the project's main(). 
+    main.c must, of course, contain the project's main().
 
     main.h includes all other headers and contains project-specific definitions
     for each driver. gcc will include main.h automatically when building all
@@ -18,14 +18,23 @@ Projects:
 
 Drivers:
 
-    Each driver has a .c file and a .h file, in the ./drivers directory.
+    Each driver has a .c file and a .h file in the ./drivers directory.
     Drivers typically require static definitions in main.h, e.g. what CPU pins
     to use, what CPU clock to assume, etc.
+
+    If the project includes the 'threads' driver then some other drivers will
+    be built with threading support (notably ticks and serial).
 
     The drivers directory also contains pin definitions for each known Arduino
     board, for example uno_r3.h.
 
 Make targets:
 
-    Run "make help" for description of supported targets including how to specify
-    what project to build.
+    To build a project for the first time, run
+
+        make <project directory name>
+
+    The project name will be stored so you don't need to specify a directory
+    name again (unless you want to build a different project).
+
+    Try "make help" to show other targets.

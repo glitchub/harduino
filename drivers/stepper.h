@@ -1,10 +1,7 @@
 // Stepper motor support
 
-// Disable driver and release pins.
-void disable_stepper(void);
-
-// Enable driver in preparation for calls to run_stepper().
-void enable_stepper(void);
+// Init driver in preparation for calls to run_stepper().
+void init_stepper(void);
 
 // Given number of steps, (re)start the stepper. Step forward if steps > 0,
 // backwards if steps < 0, or stop if steps==0. If changing direction, may

@@ -1,6 +1,9 @@
 // LCD module driver, for a controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
 
+// inline delay
+#include "waituS.h"
+
 // The module is operated in read-only 4-bit mode, the D0-D3 pins should be
 // disconnected and RW should be tied low. (A, K and VO pins are
 // hardware-specific, not in scope of this code). The following pins must be
@@ -16,15 +19,15 @@
 #define DATA 3            // Send data (RS high)
 static void send(int8_t mode, uint8_t data)
 {
-    if (mode & 2) PORT(LCD_RS) |= BIT(LCD_RS); else PORT(LCD_RS) &= ~BIT(LCD_RS); // set register select
+    if (mode & 2) PORT(LCD_RS) |= BIT(LCD_RS); else PORT(LCD_RS) &= NOBIT(LCD_RS); // set register select
     for (int8_t n=0; n <= (mode & 1); n++, data<<=4)
     {
         PORT(LCD_E) |= BIT(LCD_E);
-        if (data & 0x10) PORT(LCD_D4) |= BIT(LCD_D4); else PORT(LCD_D4) &= ~BIT(LCD_D4);
-        if (data & 0x20) PORT(LCD_D5) |= BIT(LCD_D5); else PORT(LCD_D5) &= ~BIT(LCD_D5);
-        if (data & 0x40) PORT(LCD_D6) |= BIT(LCD_D6); else PORT(LCD_D6) &= ~BIT(LCD_D6);
-        if (data & 0x80) PORT(LCD_D7) |= BIT(LCD_D7); else PORT(LCD_D7) &= ~BIT(LCD_D7);
-        PORT(LCD_E) &= ~BIT(LCD_E);
+        if (data & 0x10) PORT(LCD_D4) |= BIT(LCD_D4); else PORT(LCD_D4) &= NOBIT(LCD_D4);
+        if (data & 0x20) PORT(LCD_D5) |= BIT(LCD_D5); else PORT(LCD_D5) &= NOBIT(LCD_D5);
+        if (data & 0x40) PORT(LCD_D6) |= BIT(LCD_D6); else PORT(LCD_D6) &= NOBIT(LCD_D6);
+        if (data & 0x80) PORT(LCD_D7) |= BIT(LCD_D7); else PORT(LCD_D7) &= NOBIT(LCD_D7);
+        PORT(LCD_E) &= NOBIT(LCD_E);
     }
     waituS(40);
 }
@@ -78,24 +81,13 @@ void write_lcd(int8_t c)
     }
 }
 
-// disable lcd driver, release all pins
-void disable_lcd(void)
-{
-    PORT(LCD_D4) &= ~BIT(LCD_D4); DDR(LCD_D4) &= ~BIT(LCD_D4);
-    PORT(LCD_D5) &= ~BIT(LCD_D5); DDR(LCD_D5) &= ~BIT(LCD_D5);
-    PORT(LCD_D6) &= ~BIT(LCD_D6); DDR(LCD_D6) &= ~BIT(LCD_D6);
-    PORT(LCD_D7) &= ~BIT(LCD_D7); DDR(LCD_D7) &= ~BIT(LCD_D7);
-    PORT(LCD_RS) &= ~BIT(LCD_RS); DDR(LCD_RS) &= ~BIT(LCD_RS);
-    PORT(LCD_E)  &= ~BIT(LCD_E);  DDR(LCD_E)  &= ~BIT(LCD_E);
-}
-
-// Given display lines and columns, initalize LCD.
+// Given display lines and columns, initalize LCD. Requires ticks.
 #ifdef LCD_STDIO
 static int put(char c, FILE *f) { (void)f; write_lcd(c); return 0; }
 static FILE handle = FDEV_SETUP_STREAM(put, NULL, _FDEV_SETUP_WRITE);
-FILE *enable_lcd(uint8_t l, uint8_t c)
+FILE *init_lcd(uint8_t l, uint8_t c)
 #else
-void enable_lcd(uint8_t l, uint8_t c)
+void init_lcd(uint8_t l, uint8_t c)
 #endif
 {
     if (l < 1) l = 1; else if (l > 2) l = 2;
@@ -103,8 +95,6 @@ void enable_lcd(uint8_t l, uint8_t c)
     lines=l;
     columns=c;
     curc=curl=0;
-
-    disable_lcd();
 
     // Pins are outputs
     DDR(LCD_D4) |= BIT(LCD_D4);
@@ -114,7 +104,7 @@ void enable_lcd(uint8_t l, uint8_t c)
     DDR(LCD_RS) |= BIT(LCD_RS);
     DDR(LCD_E)  |= BIT(LCD_E);
 
-    waitmS(50); // Allow display 50mS to come out of power-on reset
+    sleep_ticks(50);                      // Allow display 50mS to come out of power-on reset
 
     // But assume the display did *not* just power on, so force a reset anyway
     send(CMD4, 0x30);

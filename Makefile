@@ -20,7 +20,7 @@ endif
 
 ifneq (${PROJECT},)
 
-CFLAGS=-g -Os -Wall -Werror -std=gnu99 --save-temps
+CFLAGS=-g -Os -Wall -Werror -std=gnu99
 
 include ${PROJECT}/make.inc
 
@@ -39,18 +39,25 @@ ${PROJECT}.elf: main.o $(addsuffix .o,${FILES})
 	${PREFIX}size $@
 
 %.o: %.c %.h ${PROJECT}/main.h
-	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h -c ${CFLAGS} -c -o $@ $< 
+	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h ${CFLAGS} -c -o $@ $<
+	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
-.PHONY: install download 
+.PHONY: install download
 install download: ${PROJECT}.hex; ./download -c ${CHIP} $<
+
+# Project simulation: 'make sim' in one window, and then 'make gdb' in another.
+# simavr is from https://github.com/buserror/simavr
+.PHONY: sim gdb
+sim: ${PROJECT}.elf; simavr -m ${CHIP} -g $<
+gdb: ${PROJECT}.elf; avr-gdb -tui -ex "target remote :1234" -ex "break main" -ex "cont" $<
 
 endif
 
 # generic rules go here, help should be first
-define help 
+define help
 echo 'Current project    : $(if ${PROJECT},${PROJECT},NOT DEFINED!)'
 echo 'Available projects : ${PROJECTS}'
-echo 
+echo
 echo 'make project-name  - remember project-name as "current", and build it'
 echo 'make               - build current project'
 echo 'make download      - build and download current project to target Arduino'
@@ -63,7 +70,7 @@ endef
 help:; @$(call help)
 
 .PHONY: clean
-clean:; rm -f *.o *.elf *.hex *.lst *.map *.s *.i 
+clean:; rm -f *.o *.elf *.hex *.lst *.map *.s *.i
 
 .PHONY: distclean
 distclean: clean; rm -f .current.*

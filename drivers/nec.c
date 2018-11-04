@@ -34,15 +34,15 @@ static volatile uint32_t keycode, state;
 // Reset IR state machine
 static inline void reset(void)
 {
-    TIMSK1 = 0;                 // disable timer interrupts
-    state = 0;                  // reset state
+    TIMSK1 = 0;                         // disable timer interrupts
+    state = 0;                          // reset state
 #if NEC_IDLE
-    TCCR1B &= ~(1 << ICES1);    // detector output normally high, so interrupt on low
+    TCCR1B &= (uint8_t)~(1 << ICES1);   // detector output normally high, so interrupt on low
 #else
-    TCCR1B |= 1 << ICES1;       // detector output normally low, so interrupt on high
+    TCCR1B |= 1 << ICES1;               // detector output normally low, so interrupt on high
 #endif
-    TIFR1 = 0xff;               // clear pending interrupts
-    TIMSK1 = 1 << ICIE1;        // enable input capture
+    TIFR1 = 0xff;                       // clear pending interrupts
+    TIMSK1 = 1 << ICIE1;                // enable input capture
 }
 
 #define REPEAT 0xC0DED00D
@@ -106,19 +106,9 @@ ISR(TIMER1_CAPT_vect)
 
 static uint32_t pressed;
 
-// Disable NEC receiver and release pins
-void disable_nec(void)
+// Init NEC IR receiver
+void init_nec(void)
 {
-    TIMSK1 = 0;                                         // disable interrupts
-    TCCR1B = 0;                                         // disable counter
-    TIFR1 = 0xff;                                       // clear any pending
-    keycode = pressed = 0;
-}
-
-// (Re)enablet NEC IR receiver
-void enable_nec(void)
-{
-    disable_nec();
     TCNT1 = 0;
     TCCR1A = 0;
     TCCR1B = 2; // clock/8
