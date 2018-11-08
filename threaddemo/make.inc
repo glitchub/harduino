@@ -1,4 +1,4 @@
-# Thread demo project 
+# Thread demo project
 
 # Toolchain prefix
 PREFIX=avr-
@@ -7,4 +7,4 @@ PREFIX=avr-
 CHIP=atmega328p
 
 # Files to build, other than main.
-FILES=threads ticks serial dht11
+FILES=threads ticks serial dht11 pwm

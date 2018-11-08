@@ -17,6 +17,25 @@ static void __attribute__((noreturn)) dht11(void)
     }
 }
 
+static semaphore pwm_mutex={.count=1};          // mutex, initially available
+static uint8_t pwmleds_stack[80];
+static void __attribute__((noreturn)) pwmleds(void)
+{
+    static const uint8_t phases[] PROGMEM = {0,1,8,25,100,25,8,1};
+    uint8_t phase=0;
+    while (1)
+    {
+        suspend(&pwm_mutex); // block here while console holds the mutex
+        set_pwm0(pgm_read_byte(&phases[phase]));
+        set_pwm1(pgm_read_byte(&phases[(phase+1) % sizeof phases]));
+        set_pwm2(pgm_read_byte(&phases[(phase+2) % sizeof phases]));
+        set_pwm3(pgm_read_byte(&phases[(phase+3) % sizeof phases]));
+        phase=(phase+1) % sizeof(phases);
+        release(&pwm_mutex);
+        sleep_ticks(40);
+    }
+}
+
 // simple console interface
 static uint8_t console_stack[128];
 static void __attribute__((noreturn)) console(void)
@@ -59,17 +78,74 @@ static void __attribute__((noreturn)) console(void)
                     break;
             }
         }
+        char *tok;
         parse:
-        if (!cl[0]) continue;
-        if (!strcmp(cl,"stacks"))
+        tok=strtok(cl," ");
+        if (!tok) continue;
+        if (!strcmp(tok,"stacks"))
         {
             fprintf(serial, "Unused stack bytes:\r\n"
                             "  ticket : %d\r\n"
                             "  dht11  : %d\r\n"
-                            "  console: %d\r\n",
-                            stackspace(ticket_stack), stackspace(dht11_stack), stackspace(console_stack));
+                            "  console: %d\r\n"
+                            "  pwmleds: %d\r\n",
+                            stackspace(ticket_stack),
+                            stackspace(dht11_stack),
+                            stackspace(console_stack),
+                            stackspace(pwmleds_stack));
         }
-        else if (!strcmp(cl,"fuses"))
+        else if (!strcmp(tok,"pwm"))
+        {
+            static char hasmutex=0;
+            tok=strtok(NULL," ");
+            if (tok)
+            {
+                if (!strcmp(tok,"run"))
+                {
+                    release_mutex(&pwm_mutex);  // release mutex (if not already)
+                    hasmutex=0;                 // remember we don't have it anymore
+                    continue;
+                }
+                if (!strcmp(tok,"stop"))
+                {
+                    // maybe grab mutex and hold it until 'run'
+                    if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
+                    continue;
+                }
+                if (!strcmp(tok, "status"))
+                {
+                    fprintf(serial, "pwmleds thread is currently %s\r\n", hasmutex?"stopped":"running");
+                    fprintf(serial, "TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\r\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
+                    fprintf(serial, "TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X\r\n", TCCR1A, TCCR1B, OCR1A, OCR1B);
+                    continue;
+                }
+                uint8_t pwm=(uint8_t)strtoul(tok,NULL,0);
+                if (pwm <= 3)
+                {
+                    tok=strtok(NULL," ");
+                    if (tok)
+                    {
+                        // maybe grab mutex and hold it until 'run'
+                        if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
+                        char percent=(char)strtol(tok,NULL,0);
+                        fprintf(serial, "Setting pwm %d = %d\r\n", pwm, percent);
+                        switch (pwm)
+                        {
+                            case 0: set_pwm0(percent); break;
+                            case 1: set_pwm1(percent); break;
+                            case 2: set_pwm2(percent); break;
+                            case 3: set_pwm3(percent); break;
+                        }
+                        continue;
+                    }
+                }
+            }
+            fprintf(serial,"Invalid pwm command\r\n");
+        }
+        else if (!strcmp(tok,"timers"))
+        {
+        }
+        else if (!strcmp(tok,"fuses"))
         {
             cli();
             uint8_t lo = boot_lock_fuse_bits_get(GET_LOW_FUSE_BITS);
@@ -84,13 +160,13 @@ static void __attribute__((noreturn)) console(void)
                             "  Lock    : %02X\r\n",
                             lo, hi, ex, lock);
         }
-        else if (!strcmp(cl, "temp"))
+        else if (!strcmp(tok, "temp"))
         {
             fprintf(serial, "Temperature: %dC (%dF)\r\n"
                             "Humidity   : %d%%\r\n",
                             degrees, ((degrees*9)/5)+32, humidity);
         }
-        else if (!strcmp(cl, "uptime"))
+        else if (!strcmp(tok, "uptime"))
         {
             uint32_t t=get_ticks();
             fprintf(serial, "Uptime: %ld.%03d seconds\r\n", t/1000, (int)(t%1000));
@@ -99,11 +175,14 @@ static void __attribute__((noreturn)) console(void)
         {
             fprintf(serial, "Unknown command: '%s'\r\n"
                             "Try:\r\n"
-                            "  temp   -- temperature and humidty\r\n"
-                            "  fuses  -- fuse bits\r\n"
-                            "  uptime -- uptime in seconds\r\n"
-                            "  stacks -- stack space for known threads\r\n",
-                            cl);
+                            "  temp                 -- show temperature and humidty\r\n"
+                            "  pwm <0-3> <0-100>    -- set pwm output percentage\r\n"
+                            "  pwm run|stop         -- run or stop the pwmleds thread\r\n"
+                            "  pwm status           -- show current pwm status\r\n"
+                            "  fuses                -- show fuse bits\r\n"
+                            "  uptime               -- show uptime in seconds\r\n"
+                            "  stacks               -- show unused stack for known threads\r\n",
+                            tok);
         }
     }
 }
@@ -114,6 +193,7 @@ int main(void)
     init_ticks(); // this should be first
     init_thread(console, console_stack, sizeof console_stack);
     init_thread(dht11, dht11_stack, sizeof dht11_stack);
+    init_thread(pwmleds, pwmleds_stack, sizeof pwmleds_stack);
 
     // Enable sleep when all threads are suspended
     set_sleep_mode(SLEEP_MODE_IDLE);

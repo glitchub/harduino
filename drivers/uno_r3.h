@@ -47,3 +47,9 @@
 #define GPIOA3 PC3, PINC, DDRC, PORTC
 #define GPIOA4 PC4, PINC, DDRC, PORTC
 #define GPIOA5 PC5, PINC, DDRC, PORTC
+
+// Map outputs for TIMER0 and TIMER1
+#define PWM0 GPIO06 // OC0A
+#define PWM1 GPIO05 // 0C0B
+#define PWM2 GPIO09 // OC1A
+#define PWM3 GPIO10 // OC1B

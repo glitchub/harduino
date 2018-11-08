@@ -2,7 +2,7 @@
 
 // Requires one pin which must have 5K to 10K pull-up resistor.
 #ifndef DHT11_IO
-#error Must define pin DHT11_IO
+#error "Must define pin DHT11_IO"
 #endif
 
 // Initialize

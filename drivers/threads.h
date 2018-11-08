@@ -144,7 +144,7 @@ static inline void release_one(semaphore *s)
     SREG=sreg;
 }
 
-// Release only if count < 1 
+// Release only if count < 1
 static inline void release_mutex(semaphore *s)
 {
     uint8_t sreg=SREG;

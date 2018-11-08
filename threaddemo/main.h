@@ -2,10 +2,12 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/boot.h>
 #include <avr/sleep.h>
+#include <avr/pgmspace.h>
 
 // Using UNO R3
 #define F_CPU 16000000      // 16Mhz
@@ -26,3 +28,8 @@
 // DHT11 temp/humidity sensor
 #define DHT11_IO GPIO02     // requires one i/o pin
 #include "dht11.h"
+
+// PWM via timers we're not using for something else
+#define USE_PWM_TIMER0
+#define USE_PWM_TIMER1
+#include "pwm.h"

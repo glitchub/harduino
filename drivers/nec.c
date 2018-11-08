@@ -25,7 +25,7 @@
 #elif F_CPU==8000000L
 #define uS(n) (n)
 #else
-#error F_CPU not supported
+#error "F_CPU not supported"
 #endif
 
 // remember last key code, current detector state
