@@ -14,11 +14,11 @@ void init_serial(uint32_t baud);
 void write_serial(int8_t c);
 
 // Return true if characters can be written without blocking.
-char writeable_serial(void);
+bool writeable_serial(void);
 #define writable_serial writeable_serial // me no spel gud
 
 // Block or yield until character available, then return it
 int8_t read_serial(void);
 
 // Return true if characters can be read without blocking.
-char readable_serial(void);
+bool readable_serial(void);

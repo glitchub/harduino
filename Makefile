@@ -21,6 +21,7 @@ endif
 ifneq (${PROJECT},)
 
 CFLAGS=-g -Os -Wall -Werror -std=gnu99
+#CFLAGS+=-save-temps
 
 include ${PROJECT}/make.inc
 

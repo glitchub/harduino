@@ -17,7 +17,7 @@ static void __attribute__((noreturn)) dht11(void)
     }
 }
 
-static semaphore pwm_mutex={.count=1};          // mutex, initially available
+static semaphore pwm_mutex=available(1);        // mutex, initially available
 static uint8_t pwmleds_stack[80];
 static void __attribute__((noreturn)) pwmleds(void)
 {

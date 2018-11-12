@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/boot.h>

@@ -141,9 +141,6 @@ asm (
 // thread's stack frame and suspend on the runnable list.
 void init_thread (void (*thread)(void), uint8_t *stack, int size)
 {
-    uint8_t sreg=SREG;
-    cli();
-
     memset(stack, 0xA5, size);
 
     // We replicate the stack frame created by suspend
@@ -178,8 +175,6 @@ void init_thread (void (*thread)(void), uint8_t *stack, int size)
         while (l->list) l=l->list;      // find the end
         l->list = (void *)stack+1;      // link our TOS pointer there
     }
-
-    SREG=sreg;
 }
 
 // Return approx number of unused bytes in specified stack

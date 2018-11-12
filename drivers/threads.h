@@ -56,11 +56,15 @@
 typedef volatile struct
 {
     void *list;             // head of linked list of suspended threads
-    unsigned char count;    // number of unhandled releases
+    unsigned char count;    // number of available resources
 } semaphore;
 // Warning, altering this definition will require changes to assembly language
 // in threads.c.
-//
+
+// A semaphore can be pre-initialized with the number of available resources
+// (e.g. a mutex is initialized to 1):
+#define available(n) {.count=n}
+
 // In classical CS science terminology a thread can "signal" a semaphore, or
 // "wait" for a semaphore. Since these names are used by libc for other kinds
 // of process control, we use the terms "release" and "suspend" instead.
@@ -98,22 +102,22 @@ void suspend(semaphore *s);
 // Utility functions
 
 // Return true if the semaphore has at least one suspended thread
-static inline char is_suspended(semaphore *s)
+static inline bool is_suspended(semaphore *s)
 {
     uint8_t sreg=SREG;
     cli();
-    char b = s->list != NULL;
+    bool b = s->list != NULL;
     SREG=sreg;
     return(b);
 }
 
 // Return true if the semaphore has at least one unhandled release
 // Note is_suspended() and is_released() cannot both be true at once.
-static inline char is_released(semaphore *s)
+static inline bool is_released(semaphore *s)
 {
     uint8_t sreg=SREG;
     cli();
-    char b = s->count != 0;
+    bool b = s->count != 0;
     SREG=sreg;
     return b;
 }

@@ -7,8 +7,8 @@
 #endif
 
 #ifdef THREADED
-// a transmit semaphore, count initially set to size of transmit buffer
-static semaphore txsem={.count=SERIAL_TX_SIZE};
+// a transmit semaphore, counts the space in the transmit buffer
+static semaphore txsem=available(SERIAL_TX_SIZE);
 #endif
 
 #if SERIAL_TX_SIZE
@@ -40,14 +40,14 @@ void write_serial(int8_t c)
 #endif
     uint8_t sreg=SREG;
     cli();
-    txq[(txo + txn)%SERIAL_TX_SIZE] = (unsigned)c;  // add character to end of queue
+    txq[(txo + txn)%SERIAL_TX_SIZE] = (uint8_t)c;   // add character to end of queue
     txn++;                                          // note another
     UCSR0B |= (1<<UDRIE0);                          // enable interrupt if not already
     SREG=sreg;
 }
 
 // Return true if chars can be written without blocking
-char writeable_serial(void)
+bool writeable_serial(void)
 {
 #ifdef THREADED
     return is_released(&txsem);
@@ -98,7 +98,7 @@ int8_t read_serial(void)
 }
 
 // Return true if characters can be read without blocking
-char readable_serial(void)
+bool readable_serial(void)
 {
 #ifdef THREADED
     return is_released(&rxsem);
