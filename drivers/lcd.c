@@ -81,7 +81,7 @@ void write_lcd(int8_t c)
     }
 }
 
-// Given display lines and columns, initalize LCD. Requires ticks.
+// Given display lines and columns, initalize LCD. Requires ticks (with interrupts enabled).
 #ifdef LCD_STDIO
 static int put(char c, FILE *f) { (void)f; write_lcd(c); return 0; }
 static FILE handle = FDEV_SETUP_STREAM(put, NULL, _FDEV_SETUP_WRITE);

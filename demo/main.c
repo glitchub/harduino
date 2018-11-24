@@ -4,13 +4,13 @@
 int main(void)
 {
     // init drivers
+    sei();
     init_ticks();                               // millisecond ticks
     FILE *serial = init_serial(115200UL);       // serial I/O
     FILE *lcd = init_lcd(2,16);                 // 2x16 LCD module
     init_nec();                                 // NEC IR
     init_dht11();                               // Thermal/humidty sense
     init_sr04();                                // Ultrasonic range
-    sei();
 
     DDR(LED) |= BIT(LED);                       // Make the LED an output
 

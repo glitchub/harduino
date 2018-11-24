@@ -1,7 +1,7 @@
 // Harduino thread demo
 #define LED GPIO13                              // on-board LED
 
-extern uint8_t ticket_stack[];                  // from ticks.c
+extern uint8_t ticker_stack[];                  // from ticks.c
 
 // poll dht11 every 2 seconds and update global variables
 static uint8_t degrees, humidity;
@@ -21,7 +21,8 @@ static semaphore pwm_mutex=available(1);        // mutex, initially available
 static uint8_t pwmleds_stack[80];
 static void __attribute__((noreturn)) pwmleds(void)
 {
-    static const uint8_t phases[] PROGMEM = {0,1,8,25,100,25,8,1};
+    static const uint8_t phases[] PROGMEM = {0, 3, 9, 27, 81, 27, 9, 3};
+
     uint8_t phase=0;
     while (1)
     {
@@ -32,7 +33,7 @@ static void __attribute__((noreturn)) pwmleds(void)
         set_pwm3(pgm_read_byte(&phases[(phase+3) % sizeof phases]));
         phase=(phase+1) % sizeof(phases);
         release(&pwm_mutex);
-        sleep_ticks(40);
+        sleep_ticks(60);
     }
 }
 
@@ -85,11 +86,11 @@ static void __attribute__((noreturn)) console(void)
         if (!strcmp(tok,"stacks"))
         {
             fprintf(serial, "Unused stack bytes:\r\n"
-                            "  ticket : %d\r\n"
+                            "  ticker : %d\r\n"
                             "  dht11  : %d\r\n"
                             "  console: %d\r\n"
                             "  pwmleds: %d\r\n",
-                            stackspace(ticket_stack),
+                            stackspace(ticker_stack),
                             stackspace(dht11_stack),
                             stackspace(console_stack),
                             stackspace(pwmleds_stack));
@@ -102,8 +103,7 @@ static void __attribute__((noreturn)) console(void)
             {
                 if (!strcmp(tok,"run"))
                 {
-                    release_mutex(&pwm_mutex);  // release mutex (if not already)
-                    hasmutex=0;                 // remember we don't have it anymore
+                    if (hasmutex) release(&pwm_mutex), hasmutex=0;
                     continue;
                 }
                 if (!strcmp(tok,"stop"))
@@ -112,11 +112,24 @@ static void __attribute__((noreturn)) console(void)
                     if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
                     continue;
                 }
+                if (!strcmp(tok,"step"))
+                {
+                    // release mutex and immediately grab it again, i.e. pwmleds runs once
+                    if (hasmutex) release(&pwm_mutex);
+                    suspend(&pwm_mutex);
+                    hasmutex=1;
+                    continue;
+                }
                 if (!strcmp(tok, "status"))
                 {
                     fprintf(serial, "pwmleds thread is currently %s\r\n", hasmutex?"stopped":"running");
                     fprintf(serial, "TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\r\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
                     fprintf(serial, "TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X\r\n", TCCR1A, TCCR1B, OCR1A, OCR1B);
+                    continue;
+                }
+                if (!strcmp(tok, "sync"))
+                {
+                    sync_pwm();
                     continue;
                 }
                 uint8_t pwm=(uint8_t)strtoul(tok,NULL,0);
@@ -141,9 +154,6 @@ static void __attribute__((noreturn)) console(void)
                 }
             }
             fprintf(serial,"Invalid pwm command\r\n");
-        }
-        else if (!strcmp(tok,"timers"))
-        {
         }
         else if (!strcmp(tok,"fuses"))
         {
@@ -177,8 +187,9 @@ static void __attribute__((noreturn)) console(void)
                             "Try:\r\n"
                             "  temp                 -- show temperature and humidty\r\n"
                             "  pwm <0-3> <0-100>    -- set pwm output percentage\r\n"
-                            "  pwm run|stop         -- run or stop the pwmleds thread\r\n"
+                            "  pwm run|stop|step    -- control pwmleds thread\r\n"
                             "  pwm status           -- show current pwm status\r\n"
+                            "  pwm sync             -- sync pwm outputs\r\n"
                             "  fuses                -- show fuse bits\r\n"
                             "  uptime               -- show uptime in seconds\r\n"
                             "  stacks               -- show unused stack for known threads\r\n",
@@ -190,6 +201,7 @@ static void __attribute__((noreturn)) console(void)
 int main(void)
 {
     // init drivers and threads
+    sei();
     init_ticks(); // this should be first
     init_thread(console, console_stack, sizeof console_stack);
     init_thread(dht11, dht11_stack, sizeof dht11_stack);
@@ -198,7 +210,6 @@ int main(void)
     // Enable sleep when all threads are suspended
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
-    sei();
 
     // Just indicate we're alive
     DDR(LED) |= BIT(LED);         // Make the LED an output

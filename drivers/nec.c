@@ -115,7 +115,7 @@ void init_nec(void)
     reset();
 }
 
-// Return 0 if no key mevent, else set *key and return PRESS for new key or
+// Return 0 if no key event, else set *key and return PRESS for new key or
 // RELEASE for new release (timeout). Note it is possible to get a new PRESS
 // without a prior RELEASE.
 // Assumes start_ticks() has been called.

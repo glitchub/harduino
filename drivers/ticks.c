@@ -4,7 +4,7 @@
 
 static volatile uint32_t ticks;             // Accrue ticks, the counter will wrap about every 50 days.
 #ifdef THREADED
-static semaphore tick_sem;                  //Also wake ticket thread
+static semaphore tick_sem;                  //Also wake ticker thread
 #endif
 ISR(TIMER2_COMPA_vect)
 {
@@ -19,7 +19,7 @@ ISR(TIMER2_COMPA_vect)
 volatile struct sleeper
 {
     struct sleeper *next;                   // Link to next sleeper, this must be first
-    uint32_t ticks;                         // How many ticks remain
+    int32_t ticks;                          // How many ticks remain
     semaphore sem;                          // What sleeping thread is suspended on
 } sleeper;
 
@@ -28,8 +28,8 @@ static struct sleeper *sleeping;
 
 // This is the tick interrupt "bottom half", release sleeping threads with
 // expired timers.
-uint8_t ticket_stack[64];
-static void ticket(void)
+uint8_t ticker_stack[64];
+static void ticker(void)
 {
     while(1)
     {
@@ -49,7 +49,9 @@ static void ticket(void)
 // sorted in order of next thread to expire.
 void sleep_ticks(int32_t t)
 {
-    struct sleeper s;                       // note this is on the stack
+    if (t <= 0) return;                     // meh
+
+    struct sleeper s;                       // sleeper struct goes on the stack
     memset(&s, 0, sizeof s);
     s.ticks=t;
 
@@ -89,10 +91,10 @@ void sleep_ticks(int32_t t)
 {
     cli();
     uint32_t u=ticks+t;
-    while ((uint32_t)(ticks-u)>0)   // while not expired
+    while ((int32_t)(ticks-u)>0)            // while not expired
     {
         sei();
-        sleep_cpu();                // no-op if sleep not enabled
+        sleep_cpu();                        // no-op if sleep not enabled
         cli();
     }
     sei();
@@ -116,7 +118,7 @@ void init_ticks(void)
 #endif
     TIMSK2 = 2;         // enable OCIE2A interrupt
 #ifdef  THREADED
-    init_thread(ticket, ticket_stack, sizeof ticket_stack);
+    init_thread(ticker, ticker_stack, sizeof ticker_stack);
 #endif
 }
 

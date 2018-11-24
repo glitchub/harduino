@@ -11,7 +11,9 @@ uint32_t get_ticks(void);
 // Sleep for specified ticks. If threading, the calling thread is suspended.
 void sleep_ticks(int32_t ticks);
 
-// True it tick value t is less than current ticks, i.e. t is a timer
-// that has expired. This works as longer as value of t is within 2^31 ticks
-// of current timer.
+// Sleep until specified tick count is reached (return immediately if diff is
+// >= 2^31).
+#define sleep_until(t) sleep_ticks((t)-get_ticks())
+
+// True if tick value t is less than current ticks
 #define expired(t) ((int32_t)(get_ticks()-(t))>=0)

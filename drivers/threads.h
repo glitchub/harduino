@@ -148,15 +148,6 @@ static inline void release_one(semaphore *s)
     SREG=sreg;
 }
 
-// Release only if count < 1
-static inline void release_mutex(semaphore *s)
-{
-    uint8_t sreg=SREG;
-    cli();
-    if (s->count < 1) release(s);
-    SREG=sreg;
-}
-
 // Initialize a thread stack and suspend the entry function on the runnable
 // list. main() must call this once for each thread, with a dfferent stack
 // array for each.
