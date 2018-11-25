@@ -26,7 +26,7 @@ void set_pwm0(char percent)
     {
         PORT(PWM0) &= NOBIT(PWM0);                  // low
         TCCR0A &= 0x3f;                             // disable COM0A
-    } else if (percent == 100)
+    } else if (percent >= 100)
     {
         PORT(PWM0) |= BIT(PWM0);                    // high
         TCCR0A &= 0x3f;                             // disable COM0A
@@ -58,7 +58,7 @@ void set_pwm1(char percent)
     {
         PORT(PWM1) &= NOBIT(PWM1);                  // low
         TCCR0A &= 0xcf;                             // disable COM0B
-    } else if (percent == 100)
+    } else if (percent >= 100)
     {
         PORT(PWM1) |= BIT(PWM1);                    // high
         TCCR0A &= 0xcf;                             // disable COM0B
@@ -92,7 +92,7 @@ void set_pwm2(char percent)
     {
         PORT(PWM2) &= NOBIT(PWM2);                  // low
         TCCR1A &= 0x3f;                             // disable COM1A
-    } else if (percent == 100)
+    } else if (percent >= 100)
     {
         PORT(PWM2) |= BIT(PWM2);                    // high
         TCCR1A &= 0x3f;                             // disable COM1A
@@ -124,7 +124,7 @@ void set_pwm3(char percent)
     {
         PORT(PWM3) &= NOBIT(PWM3);                  // low
         TCCR1A &= 0xcf;                             // disable COM1B
-    } else if (percent == 100)
+    } else if (percent >= 100)
     {
         PORT(PWM3) |= BIT(PWM3);                    // high
         TCCR1A &= 0xcf;                             // disable COM1B
