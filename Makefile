@@ -30,7 +30,7 @@ VPATH=${PROJECT} drivers
 .PHONY: ${PROJECT} default
 ${PROJECT} default: .current.${PROJECT} ${PROJECT}.hex
 
-.current.${PROJECT}:; make distclean && touch $@
+.current.${PROJECT}: distclean; touch $@
 
 ${PROJECT}.hex: ${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
 

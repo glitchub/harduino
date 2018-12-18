@@ -167,14 +167,9 @@ void init_thread (void (*thread)(void), uint8_t *stack, int size)
     *stack-- = 29;                      // push r29
     *stack-- = 0;                       // push TOS pointer to NULL
     *stack-- = 0;
-    if (!__runnable.list)
-        __runnable.list=(void *)stack+1;
-    else
-    {
-        semaphore *l = __runnable.list; // link to the __runnable list
-        while (l->list) l=l->list;      // find the end
-        l->list = (void *)stack+1;      // link our TOS pointer there
-    }
+    void **r=(void **)&__runnable.list; // find end of runnable list
+    while (*r) r=*r;
+    *r=(void *)stack+1;                 // link our TOS there
 }
 
 // Return approx number of unused bytes in specified stack

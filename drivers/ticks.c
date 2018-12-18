@@ -4,7 +4,7 @@
 
 static volatile uint32_t ticks;             // Accrue ticks, the counter will wrap about every 50 days.
 #ifdef THREADED
-static semaphore tick_sem;                  //Also wake ticker thread
+static semaphore tick_sem;                  // Also wake ticker thread
 #endif
 ISR(TIMER2_COMPA_vect)
 {
@@ -91,7 +91,7 @@ void sleep_ticks(int32_t t)
 {
     cli();
     uint32_t u=ticks+t;
-    while ((int32_t)(ticks-u)>0)            // while not expired
+    while ((int32_t)(u-ticks)>0)            // while not expired
     {
         sei();
         sleep_cpu();                        // no-op if sleep not enabled
