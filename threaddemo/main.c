@@ -21,7 +21,7 @@ static semaphore pwm_mutex=available(1);        // mutex, initially available
 static uint8_t pwmleds_stack[80];
 static void __attribute__((noreturn)) pwmleds(void)
 {
-    static const uint8_t phases[] PROGMEM = {0, 3, 9, 27, 81, 27, 9, 3};
+    static const uint8_t phases[] PROGMEM = {0, 7, 22, 68, 206, 68, 22, 7};
 
     uint8_t phase=0;
     while (1)
@@ -124,7 +124,7 @@ static void __attribute__((noreturn)) console(void)
                 {
                     fprintf(serial, "pwmleds thread is currently %s\r\n", hasmutex?"stopped":"running");
                     fprintf(serial, "TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\r\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
-                    fprintf(serial, "TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X\r\n", TCCR1A, TCCR1B, OCR1A, OCR1B);
+                    fprintf(serial, "TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X ICR1=%04X\r\n", TCCR1A, TCCR1B, OCR1A, OCR1B, ICR1);
                     continue;
                 }
                 if (!strcmp(tok, "sync"))
@@ -132,28 +132,34 @@ static void __attribute__((noreturn)) console(void)
                     sync_pwm();
                     continue;
                 }
+                if (!strcmp(tok, "freq"))
+                {
+                    tok=strtok(NULL, " ");
+                    if (!tok) goto ng;
+                    uint16_t freq=(uint16_t)strtoul(tok,NULL,0);
+                    fprintf(serial, "setting pwm freq = %u, actual = %u\r\n", freq, set_timer1_freq(freq));
+                    continue;
+                }
                 uint8_t pwm=(uint8_t)strtoul(tok,NULL,0);
                 if (pwm <= 3)
                 {
                     tok=strtok(NULL," ");
-                    if (tok)
+                    if (!tok) goto ng;
+                    // maybe grab mutex and hold it until 'run'
+                    if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
+                    int16_t width=(int16_t)strtol(tok,NULL,0);
+                    fprintf(serial, "Setting pwm %d = %d\r\n", pwm, width);
+                    switch (pwm)
                     {
-                        // maybe grab mutex and hold it until 'run'
-                        if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
-                        char percent=(char)strtol(tok,NULL,0);
-                        fprintf(serial, "Setting pwm %d = %d\r\n", pwm, percent);
-                        switch (pwm)
-                        {
-                            case 0: set_pwm0(percent); break;
-                            case 1: set_pwm1(percent); break;
-                            case 2: set_pwm2(percent); break;
-                            case 3: set_pwm3(percent); break;
-                        }
-                        continue;
+                        case 0: set_pwm0(width); break;
+                        case 1: set_pwm1(width); break;
+                        case 2: set_pwm2(width); break;
+                        case 3: set_pwm3(width); break;
                     }
+                    continue;
                 }
             }
-            fprintf(serial,"Invalid pwm command\r\n");
+            ng: fprintf(serial,"Invalid pwm command\r\n");
         }
         else if (!strcmp(tok,"fuses"))
         {
@@ -186,7 +192,8 @@ static void __attribute__((noreturn)) console(void)
             fprintf(serial, "Unknown command: '%s'\r\n"
                             "Try:\r\n"
                             "  temp                 -- show temperature and humidty\r\n"
-                            "  pwm <0-3> <0-100>    -- set pwm output percentage\r\n"
+                            "  pwm <0-3> <0-100>    -- set pwm output width 0-255\r\n"
+                            "  pwm freq <1-16250>   -- set pwm2/3 frequency\r\n"
                             "  pwm run|stop|step    -- control pwmleds thread\r\n"
                             "  pwm status           -- show current pwm status\r\n"
                             "  pwm sync             -- sync pwm outputs\r\n"
@@ -212,10 +219,11 @@ int main(void)
     sleep_enable();
 
     // Just indicate we're alive
-    DDR(LED) |= BIT(LED);         // Make the LED an output
+    DDR(LED) |= BIT(LED);           // Make the LED an output
+    uint32_t next=get_ticks();
     while (1)
     {
-        sleep_ticks(200);
+        sleep_until(next+=200);     // every 200 mS
         PIN(LED) = BIT(LED);
     }
 }
