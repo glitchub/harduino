@@ -53,3 +53,9 @@
 #define PWM1 GPIO05 // 0C0B
 #define PWM2 GPIO09 // OC1A
 #define PWM3 GPIO10 // OC1B
+
+// Map pins for SPI
+#define SPI_SS   GPIO10
+#define SPI_MOSI GPIO11
+#define SPI_MISO GPIO12
+#define SPI_SCK  GPIO13
