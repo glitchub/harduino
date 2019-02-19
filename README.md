@@ -34,7 +34,7 @@ Make targets:
 
         make <project directory name>
 
-    The project name will be stored so you don't need to specify a directory
-    name again (unless you want to build a different project).
+    The project name will be stored so you don't need to specify it again
+    (unless you want to build a different project).
 
     Try "make help" to show other targets.
