@@ -1,12 +1,9 @@
 // Harduino thread demo
 #define LED GPIO13                              // on-board LED
 
-extern uint8_t ticker_stack[];                  // from ticks.c
-
 // poll dht11 every 2 seconds and update global variables
 static uint8_t degrees, humidity;
-static uint8_t dht11_stack[80];
-static void __attribute__((noreturn)) dht11(void)
+THREAD(dht11,80)
 {
     init_dht11();                               // initialize
     sleep_ticks(1000);                          // allow one second to power on
@@ -18,8 +15,7 @@ static void __attribute__((noreturn)) dht11(void)
 }
 
 static semaphore pwm_mutex=available(1);        // mutex, initially available
-static uint8_t pwmleds_stack[80];
-static void __attribute__((noreturn)) pwmleds(void)
+THREAD(pwmled,80)
 {
     static const uint8_t phases[] PROGMEM = {0, 7, 22, 68, 206, 68, 22, 7};
 
@@ -38,8 +34,7 @@ static void __attribute__((noreturn)) pwmleds(void)
 }
 
 // simple console interface
-static uint8_t console_stack[128];
-static void __attribute__((noreturn)) console(void)
+THREAD(console,128)
 {
     FILE *serial = init_serial(115200UL);
     while(1)
@@ -85,15 +80,7 @@ static void __attribute__((noreturn)) console(void)
         if (!tok) continue;
         if (!strcmp(tok,"stacks"))
         {
-            fprintf(serial, "Unused stack bytes:\r\n"
-                            "  ticker : %d\r\n"
-                            "  dht11  : %d\r\n"
-                            "  console: %d\r\n"
-                            "  pwmleds: %d\r\n",
-                            stackspace(ticker_stack),
-                            stackspace(dht11_stack),
-                            stackspace(console_stack),
-                            stackspace(pwmleds_stack));
+            debug_stacks(serial);
         }
         else if (!strcmp(tok,"pwm"))
         {
@@ -207,18 +194,10 @@ static void __attribute__((noreturn)) console(void)
 
 int main(void)
 {
-    // init drivers and threads
-    sei();
-    init_ticks(); // this should be first
-    init_thread(console, console_stack, sizeof console_stack);
-    init_thread(dht11, dht11_stack, sizeof dht11_stack);
-    init_thread(pwmleds, pwmleds_stack, sizeof pwmleds_stack);
+    // start all threads
+    start_threads();
 
-    // Enable sleep when all threads are suspended
-    set_sleep_mode(SLEEP_MODE_IDLE);
-    sleep_enable();
-
-    // Just indicate we're alive
+    // this is a thread too, just blink
     DDR(LED) |= BIT(LED);           // Make the LED an output
     uint32_t next=get_ticks();
     while (1)

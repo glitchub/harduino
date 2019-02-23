@@ -139,7 +139,7 @@ asm (
 
 // Given a thread entry point and address/size of an allocated stack, init the
 // thread's stack frame and suspend on the runnable list.
-void init_thread (void (*thread)(void), uint8_t *stack, int size)
+static void init_thread (void (*thread)(void), uint8_t *stack, int size)
 {
     memset(stack, 0xA5, size);
 
@@ -172,10 +172,28 @@ void init_thread (void (*thread)(void), uint8_t *stack, int size)
     *r=(void *)stack+1;                 // link our TOS there
 }
 
-// Return approx number of unused bytes in specified stack
-int stackspace(uint8_t *stack)
+// Start all threads in .threads section
+void start_threads(void)
 {
-    int x=0;
-    while (*stack++ == 0xA5) x++;
-    return x;
+    for (thread_frame **p =&__threads_start; p < &__threads_end; p++)
+        init_thread((*p)->thread, (*p)->stack, (*p)->size);
+    set_sleep_mode(SLEEP_MODE_IDLE);    // Enable sleep when all threads are suspended
+    sleep_enable();
+    sei();                              // Enable interrupts
+    yield();                            // Let all threads run once
 }
+
+#ifdef DEBUG_STACKS
+// Given serial handle, report unused stack for each thread.
+void debug_stacks(FILE *serial)
+{
+    fprintf(serial, "Thread stack bytes unused:\r\n");
+    for (thread_frame **p =&__threads_start; p < &__threads_end; p++)
+    {
+        uint8_t *s=(*p)->stack;
+        int x=0;
+        while (*s++ == 0xA5) x++; // stack is filled with 0xA5s, count how many are left
+        fprintf(serial, "  %-10s: %d\r\n", (*p)->name, x);
+    }
+}
+#endif

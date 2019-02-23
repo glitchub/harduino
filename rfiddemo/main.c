@@ -1,12 +1,7 @@
 // Harduino MFRC522 card reader demo
 int main(void)
 {
-    sei();
-    init_ticks(); // this should be first
-
-    // Enable sleep when all threads are suspended
-    set_sleep_mode(SLEEP_MODE_IDLE);
-    sleep_enable();
+    start_threads(); // starts the tick thread, there aren't any others
 
     // init the console
     FILE *serial = init_serial(115200UL);
