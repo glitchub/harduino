@@ -1,8 +1,5 @@
 # Thread demo project
 
-# Toolchain prefix
-PREFIX=avr-
-
 # CPU
 CHIP=atmega328p
 

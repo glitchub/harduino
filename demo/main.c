@@ -6,17 +6,18 @@ int main(void)
     // init drivers
     sei();
     init_ticks();                               // millisecond ticks
-    FILE *serial = init_serial(115200UL);       // serial I/O
+    init_serial();                              // serial I/O
     FILE *lcd = init_lcd(2,16);                 // 2x16 LCD module
     init_nec();                                 // NEC IR
-    init_dht11();                               // Thermal/humidty sense
+    gpio dht11={GPIO12};                        // dht11 is on gpio13
+    init_dht11(&dht11);                         // Thermal/humidty sense
     init_sr04();                                // Ultrasonic range
 
-    DDR(LED) |= BIT(LED);                       // Make the LED an output
+    OUT_GPIO(LED);                              // Make the LED an output
 
     fprintf(lcd, "\fBooting...\n");             // \f == home cursor
 
-    fprintf(serial, "Booting...\r\n");          // terminal always requires crlf
+    printf("Booting...\n");          // terminal always requires crlf
 
     // get fuses
     cli();
@@ -25,7 +26,7 @@ int main(void)
     uint8_t hifuse = boot_lock_fuse_bits_get(GET_HIGH_FUSE_BITS);
     uint8_t lofuse = boot_lock_fuse_bits_get(GET_LOW_FUSE_BITS);
     sei();                                      // Enable interrupts
-    fprintf(serial, "Fuses: lo=%02X hi=%02X ex=%02X lock=%02X\r\n", lofuse, hifuse, exfuse, lock);
+    printf("Fuses: lo=%02X hi=%02X ex=%02X lock=%02X\n", lofuse, hifuse, exfuse, lock);
 
     uint32_t then=0, input=0;
 
@@ -35,7 +36,7 @@ int main(void)
         if (now != then)                        // if new
         {
             then=now;                           // remember
-            PIN(LED) = BIT(LED);                // toggle the LED
+            TOG_GPIO(LED);                      // toggle the LED
 
             uint8_t d=now / 86400UL;
             uint8_t h=(now % 86400UL) / 3600;
@@ -46,31 +47,31 @@ int main(void)
             if (!input) fprintf(lcd, "\f%lu\v", now);
             fprintf(lcd, "\f\n%02u:%02u:%02u:%02u", d, h, m, s);
 
-            fprintf(serial, "%ld %02u:%02u:%02u:%02u\r\n", now, d, h, m, s);
+            printf("%ld %02u:%02u:%02u:%02u\n", now, d, h, m, s);
 
             if (readable_serial())
             {
-                fprintf(serial, "Did you just say \"");
-                do fputc(fgetc(serial), serial); while (readable_serial());
-                fprintf(serial, "\"?\r\n");
+                printf("Did you just say \"");
+                do putchar(getchar()); while (readable_serial());
+                printf("\"?\n");
             }
 
             // report sr04 range
             int16_t cm=get_sr04();
             switch(cm)
             {
-                case -2: fprintf(serial,"sr04 not responding!\r\n"); break;
-                case -1: fprintf(serial,"sr04 range: unknown\r\n"); break;
-                default: fprintf(serial,"sr04 range: %d cm\r\n", cm);
+                case -2: printf("sr04 not responding!\n"); break;
+                case -1: printf("sr04 range: unknown\n"); break;
+                default: printf("sr04 range: %d cm\n", cm);
             }
 
             if (now & 1)
             {
                 // every two seconds
                 uint8_t dc, rh, r;
-                r=get_dht11(&dc, &rh);
-                if (r) fprintf(serial, "dht11 error %d\r\n", r);
-                else fprintf(serial, "dht11 temp: %dC, RH: %d%%\r\n", dc, rh);
+                r=get_dht11(&dc, &rh, &dht11);
+                if (r) printf("dht11 error %d\n", r);
+                else printf("dht11 temp: %dC, RH: %d%%\n", dc, rh);
             }
         }
 
@@ -107,7 +108,7 @@ int main(void)
                 case 0x42: n=7; break;                  // 7
                 case 0x52: n=8; break;                  // 8
                 case 0x4a: n=9; break;                  // 9
-                default: fprintf(serial,"Unknown remote key %08lX", key); break;
+                default: printf("Unknown remote key %08lX", key); break;
             }
             if (n >= 0) input=(input*10)+n;
             fprintf(lcd, "\f%lu\xff\v", input);         // Take over the top LCD line, with a fake cursor

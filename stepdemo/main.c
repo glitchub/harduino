@@ -7,7 +7,7 @@
 static int8_t pressed(void)
 {
     static int8_t was=0;
-    int8_t hi=PIN(BUTTON) & BIT(BUTTON);
+    int8_t hi=GET_GPIO(BUTTON);
     if (hi != was)
     {
         was=hi;
@@ -21,22 +21,22 @@ int main(void)
     init_ticks();
     init_stepper();
 
-    DDR(LED) |= BIT(LED);                       // Make the LED an output
-    PORT(BUTTON) |= BIT(BUTTON);                // set pull-up on BUTTON input
+    OUT_GPIO(LED);                              // Make the LED an output
+    SET_GPIO(BUTTON);                           // set pull-up on BUTTON input
     ADMUX = 0x24;                               // prepare for 8-bit A/D conversion on GPIOA4
 
     sei();
 
     while(1)
     {
-        PORT(LED) |= BIT(LED);
+        SET_GPIO(LED);
         while (pressed());                      // wait for button release
         uint32_t t = get_ticks()+100;
         while(!pressed())                       // while button not pressed
         {
             if (expired(t))
             {
-                PIN(LED) = BIT(LED);
+                TOG_GPIO(LED);
                 t+=100;
             }
             ADCSRA = 0xc4;                      // start conversion
@@ -48,7 +48,7 @@ int main(void)
             else run_stepper(0);                // or stop
         }
         while (pressed());                      // wait for button release
-        PORT(LED) &= ~BIT(LED);                 // toggle the LED
+        CLR_GPIO(LED);                          // toggle the LED
         while (1)
         {
             run_stepper(4096);

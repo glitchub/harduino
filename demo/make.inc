@@ -1,7 +1,4 @@
-# Demo project 
-
-# Toolchain prefix
-PREFIX=avr-
+# Demo project
 
 # CPU
 CHIP=atmega328p

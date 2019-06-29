@@ -1,5 +1,7 @@
 # Harduino Makefile
 
+PREFIX=avr-
+
 BUILD=./build
 
 # A project is any subdirectory containing 'make.inc'
@@ -33,10 +35,13 @@ OBJS=$(addprefix ${BUILD}/,main.o $(addsuffix .o,${FILES}))
 VPATH=${PROJECT} drivers
 
 .PHONY: ${PROJECT} default
-${PROJECT} default: ${BUILD}/${PROJECT}.hex 
-        # print memory usage 
+${PROJECT} default: ${BUILD}/${PROJECT}.hex
+        # print memory usage
 	@${PREFIX}size -A $(basename $<).elf | \
-        awk '{a[$$1]=$$2}END{print "$< requires",a[".data"]+a[".bss"],"bytes of RAM,",a[".data"]+a[".text"]+a[".noinit"],"bytes of FLASH"}'
+	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
+	     /N __heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
+	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
+	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } }'
 
 ${BUILD}/${PROJECT}.hex: ${BUILD}/${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
 
@@ -46,11 +51,15 @@ ${BUILD}/${PROJECT}.elf: ${BUILD}/${PROJECT}.lds ${OBJS}
 
 # insert .threads section immediately before end of .text and emit start and end symbols
 ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
-	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' $< > $@
+	{ \
+	  cat $< | \
+	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
+	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
+	; } >$@
 
 # gcc outputs default linker script with leading and trailing line of ==='s, use awk to extracts it to file or fail if couldn't
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@       
+	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
 ${BUILD}/%.o: %.c %.h main.h ${BUILD}/.current.${PROJECT}
 	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h ${CFLAGS} -c -o $@ $<
@@ -58,12 +67,13 @@ ${BUILD}/%.o: %.c %.h main.h ${BUILD}/.current.${PROJECT}
 
 # create empty build directory if necessary
 ${BUILD}/.current.${PROJECT}:
-	rm -rf ${dir $@} 
+	rm -rf ${dir $@}
 	mkdir ${dir $@}
 	touch $@
 
-.PHONY: install download
-install download: ${BUILD}/${PROJECT}.hex; ./download -c ${CHIP} $<
+.PHONY: install
+install: ${BUILD}/${PROJECT}.hex
+	avrdude -q -c arduino -p "${CHIP} -P "$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)" -b 115200 -U "flash:w:$<:i"
 
 # Project simulation: 'make sim' in one window, and then 'make gdb' in another.
 # simavr is from https://github.com/buserror/simavr
@@ -90,7 +100,7 @@ endef
 help:; @$(call help)
 
 .PHONY: clean
-clean:; rm -f ${BUILD}/*
+clean:; rm -f ${BUILD}/* *.s *.i
 
 .PHONY: distclean
 distclean:; rm -rf ${BUILD}

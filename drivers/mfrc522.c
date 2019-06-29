@@ -218,10 +218,9 @@ s8 get_mfrc522(u8 *uid)
 // Init the mfrc522 and return true, or false if error
 bool init_mfrc522(void)
 {
-    PORT(MFRC522_RST) &= NOBIT(MFRC522_RST);                    // take reset low
-    DDR(MFRC522_RST) |= BIT(MFRC522_RST);
+    CLR_GPIO(MFRC522_RST); OUT_GPIO(MFRC522_RST);               // take reset low
     init_spi();                                                 // init the SPI
-    PORT(MFRC522_RST) |= BIT(MFRC522_RST);                      // take reset high
+    SET_GPIO(MFRC522_RST);                                      // take reset high
     sleep_ticks(50);                                            // give it 50mS to come up
     u8 ver = rb(VersionReg);                                    // is it alive?
     if (ver != 0x91 && ver != 0x92) return 0;                   //

@@ -13,7 +13,7 @@
 
 void init_sr04(void)
 {
-    DDR(SR04_TRIG) |= BIT(SR04_TRIG); // trigger is an output
+    OUT_GPIO(SR04_TRIG); // trigger is an output
 }
 
 // 8-cycle loops per microsecond, works for 8Mhz and 16Mhz clocks
@@ -25,15 +25,15 @@ void init_sr04(void)
 int16_t get_sr04(void)
 {
     uint16_t loops;
-    PORT(SR04_TRIG) |= BIT(SR04_TRIG);
+    SET_GPIO(SR04_TRIG);
     waituS(10);
-    PORT(SR04_TRIG) &= NOBIT(SR04_TRIG);
+    CLR_GPIO(SR04_TRIG);
     // wait 1mS for ECHO to go high
     loops=1000*uS;
-    while (!(PIN(SR04_ECHO) & BIT(SR04_ECHO))) { if (!--loops) return -2; __asm__ __volatile__ ("nop\n\tnop"); } // loop is 8 cycles
+    while (!GET_GPIO(SR04_ECHO)) { if (!--loops) return -2; __asm__ __volatile__ ("nop\n\tnop"); } // loop is 8 cycles
     // wait 25 mS for ECHO to go low
     loops=25000*uS;
-    while ((PIN(SR04_ECHO) & BIT(SR04_ECHO))) { if (!--loops) return -1; __asm__ __volatile__ ("nop\n\tnop"); } // loop is 8 cycles
+    while ((GET_GPIO(SR04_ECHO))) { if (!--loops) return -1; __asm__ __volatile__ ("nop\n\tnop"); } // loop is 8 cycles
     // Round trip time is ~58 uS per centimeter
     return ((25000*uS)-loops)/(uS * 58);
 }

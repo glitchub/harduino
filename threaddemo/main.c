@@ -1,15 +1,17 @@
 // Harduino thread demo
 #define LED GPIO13                              // on-board LED
 
+
 // poll dht11 every 2 seconds and update global variables
 static uint8_t degrees, humidity;
 THREAD(dht11,80)
 {
-    init_dht11();                               // initialize
+    static gpio dht11={GPIO02};                 // dht11 attached to GPIO02
+    init_dht11(&dht11);                         // initialize
     sleep_ticks(1000);                          // allow one second to power on
     while(1)
     {
-        get_dht11(&degrees, &humidity);         // update vars
+        get_dht11(&degrees, &humidity, &dht11); // update vars
         sleep_ticks(2000);                      // every two seconds
     }
 }
@@ -36,28 +38,28 @@ THREAD(pwmled,80)
 // simple console interface
 THREAD(console,128)
 {
-    FILE *serial = init_serial(115200UL);
+    init_serial();
     while(1)
     {
         static char cl[32] = "";                    // command buffer, make it static!
         uint8_t cln=0;                              // number of chars
-        fputs("threaddemo> ", serial);
+        puts("threaddemo> ");
         while(1)
         {
-            char c=fgetc(serial);                   // wait for a char
+            char c=getchar();                       // wait for a char
             switch(c)
             {
                 case '\r':
                     while (cln && cl[cln-1]==' ') cln--;
                     cl[cln]=0;                      // zero terminate
-                    fputs("\r\n",serial);
+                    puts("\n");
                     goto parse;                     // go parse it
 
                 case '\b':
                     if (cln)                        // if we have some chars
                     {
                         cln--;                      // backspace
-                        fputs("\b \b", serial);
+                        puts("\b \b");
                     }
                     break;
 
@@ -69,7 +71,7 @@ THREAD(console,128)
                     if (cln < sizeof(cl)-2)         // if it will fit
                     {
                         cl[cln++]=c;                // append it
-                        fputc(c, serial);
+                        putchar(c);
                     }
                     break;
             }
@@ -80,7 +82,7 @@ THREAD(console,128)
         if (!tok) continue;
         if (!strcmp(tok,"stacks"))
         {
-            debug_stacks(serial);
+            debug_stacks();
         }
         else if (!strcmp(tok,"pwm"))
         {
@@ -109,9 +111,9 @@ THREAD(console,128)
                 }
                 if (!strcmp(tok, "status"))
                 {
-                    fprintf(serial, "pwmleds thread is currently %s\r\n", hasmutex?"stopped":"running");
-                    fprintf(serial, "TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\r\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
-                    fprintf(serial, "TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X ICR1=%04X\r\n", TCCR1A, TCCR1B, OCR1A, OCR1B, ICR1);
+                    printf("pwmleds thread is currently %s\n", hasmutex?"stopped":"running");
+                    printf("TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
+                    printf("TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X ICR1=%04X\n", TCCR1A, TCCR1B, OCR1A, OCR1B, ICR1);
                     continue;
                 }
                 if (!strcmp(tok, "sync"))
@@ -124,7 +126,7 @@ THREAD(console,128)
                     tok=strtok(NULL, " ");
                     if (!tok) goto ng;
                     uint16_t freq=(uint16_t)strtoul(tok,NULL,0);
-                    fprintf(serial, "setting pwm freq = %u, actual = %u\r\n", freq, set_timer1_freq(freq));
+                    printf("setting pwm freq = %u, actual = %u\n", freq, set_timer1_freq(freq));
                     continue;
                 }
                 uint8_t pwm=(uint8_t)strtoul(tok,NULL,0);
@@ -135,7 +137,7 @@ THREAD(console,128)
                     // maybe grab mutex and hold it until 'run'
                     if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
                     int16_t width=(int16_t)strtol(tok,NULL,0);
-                    fprintf(serial, "Setting pwm %d = %d\r\n", pwm, width);
+                    printf("Setting pwm %d = %d\n", pwm, width);
                     switch (pwm)
                     {
                         case 0: set_pwm0(width); break;
@@ -146,7 +148,7 @@ THREAD(console,128)
                     continue;
                 }
             }
-            ng: fprintf(serial,"Invalid pwm command\r\n");
+            ng: printf("Invalid pwm command\n");
         }
         else if (!strcmp(tok,"fuses"))
         {
@@ -156,37 +158,37 @@ THREAD(console,128)
             uint8_t ex = boot_lock_fuse_bits_get(GET_EXTENDED_FUSE_BITS);
             uint8_t lock = boot_lock_fuse_bits_get(GET_LOCK_BITS);
             sei();
-            fprintf(serial, "Fuses:\r\n"
-                            "  Low     : %02X\r\n"
-                            "  High    : %02X\r\n"
-                            "  Extended: %02X\r\n"
-                            "  Lock    : %02X\r\n",
+            printf("Fuses:\n"
+                            "  Low     : %02X\n"
+                            "  High    : %02X\n"
+                            "  Extended: %02X\n"
+                            "  Lock    : %02X\n",
                             lo, hi, ex, lock);
         }
         else if (!strcmp(tok, "temp"))
         {
-            fprintf(serial, "Temperature: %dC (%dF)\r\n"
-                            "Humidity   : %d%%\r\n",
+            printf("Temperature: %dC (%dF)\n"
+                            "Humidity   : %d%%\n",
                             degrees, ((degrees*9)/5)+32, humidity);
         }
         else if (!strcmp(tok, "uptime"))
         {
             uint32_t t=get_ticks();
-            fprintf(serial, "Uptime: %ld.%03d seconds\r\n", t/1000, (int)(t%1000));
+            printf("Uptime: %ld.%03d seconds\n", t/1000, (int)(t%1000));
         }
         else
         {
-            fprintf(serial, "Unknown command: '%s'\r\n"
-                            "Try:\r\n"
-                            "  temp                 -- show temperature and humidty\r\n"
-                            "  pwm <0-3> <0-100>    -- set pwm output width 0-255\r\n"
-                            "  pwm freq <1-16250>   -- set pwm2/3 frequency\r\n"
-                            "  pwm run|stop|step    -- control pwmleds thread\r\n"
-                            "  pwm status           -- show current pwm status\r\n"
-                            "  pwm sync             -- sync pwm outputs\r\n"
-                            "  fuses                -- show fuse bits\r\n"
-                            "  uptime               -- show uptime in seconds\r\n"
-                            "  stacks               -- show unused stack for known threads\r\n",
+            printf("Unknown command: '%s'\n"
+                            "Try:\n"
+                            "  temp                 -- show temperature and humidty\n"
+                            "  pwm <0-3> <0-100>    -- set pwm output width 0-255\n"
+                            "  pwm freq <1-16250>   -- set pwm2/3 frequency\n"
+                            "  pwm run|stop|step    -- control pwmleds thread\n"
+                            "  pwm status           -- show current pwm status\n"
+                            "  pwm sync             -- sync pwm outputs\n"
+                            "  fuses                -- show fuse bits\n"
+                            "  uptime               -- show uptime in seconds\n"
+                            "  stacks               -- show unused stack for known threads\n",
                             tok);
         }
     }
@@ -198,11 +200,11 @@ int main(void)
     start_threads();
 
     // this is a thread too, just blink
-    DDR(LED) |= BIT(LED);           // Make the LED an output
+    OUT_GPIO(LED);                  // Make the LED an output
     uint32_t next=get_ticks();
     while (1)
     {
         sleep_until(next+=200);     // every 200 mS
-        PIN(LED) = BIT(LED);
+        TOG_GPIO(LED);
     }
 }

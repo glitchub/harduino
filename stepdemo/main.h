@@ -7,6 +7,7 @@
 
 // Using UNO R3
 #define F_CPU 16000000      // 16Mhz
+#include "gpio.h"
 #include "uno_r3.h"
 
 // millisecond tick driver

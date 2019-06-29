@@ -48,10 +48,10 @@ ISR(TIMER0_COMPA_vect)
         TIMSK0 = 0;                         // disable interrupt
         TCCR0B = 0;                         // disable timer
         // coils off
-        PORT(STEPPER_N) &= NOBIT(STEPPER_N);
-        PORT(STEPPER_E) &= NOBIT(STEPPER_E);
-        PORT(STEPPER_S) &= NOBIT(STEPPER_S);
-        PORT(STEPPER_W) &= NOBIT(STEPPER_W);
+        CLR_GPIO(STEPPER_N);
+        CLR_GPIO(STEPPER_E);
+        CLR_GPIO(STEPPER_S);
+        CLR_GPIO(STEPPER_W);
         return;
     }
 
@@ -60,10 +60,10 @@ ISR(TIMER0_COMPA_vect)
 
     // energize coils of interest
     uint8_t p = phases[phase % STEPPER_PHASES];
-    if (p & NORTH) PORT(STEPPER_N) |= BIT(STEPPER_N); else PORT(STEPPER_N) &= NOBIT(STEPPER_N);
-    if (p & EAST) PORT(STEPPER_E) |= BIT(STEPPER_E); else PORT(STEPPER_E) &= NOBIT(STEPPER_E);
-    if (p & SOUTH) PORT(STEPPER_S) |= BIT(STEPPER_S); else PORT(STEPPER_S) &= NOBIT(STEPPER_S);
-    if (p & WEST) PORT(STEPPER_W) |= BIT(STEPPER_W); else  PORT(STEPPER_W) &= NOBIT(STEPPER_W);
+    if (p & NORTH) SET_GPIO(STEPPER_N); else CLR_GPIO(STEPPER_N);
+    if (p & EAST) SET_GPIO(STEPPER_E); else CLR_GPIO(STEPPER_E);
+    if (p & SOUTH) SET_GPIO(STEPPER_S); else CLR_GPIO(STEPPER_S);
+    if (p & WEST) SET_GPIO(STEPPER_W); else  CLR_GPIO(STEPPER_W);
 
     if (clocks < SLOW_CLOCKS-steps)         // decelerate near the end
     {
@@ -80,14 +80,14 @@ ISR(TIMER0_COMPA_vect)
 // Enable stepper driver
 void init_stepper(void)
 {
-    PORT(STEPPER_N) &= NOBIT(STEPPER_N);    // coils off
-    PORT(STEPPER_E) &= NOBIT(STEPPER_E);
-    PORT(STEPPER_S) &= NOBIT(STEPPER_S);
-    PORT(STEPPER_W) &= NOBIT(STEPPER_W);
-    DDR(STEPPER_N) |= BIT(STEPPER_N);       // set as outputs
-    DDR(STEPPER_E) |= BIT(STEPPER_E);
-    DDR(STEPPER_S) |= BIT(STEPPER_S);
-    DDR(STEPPER_W) |= BIT(STEPPER_W);
+    CLR_GPIO(STEPPER_N);    // coils off
+    CLR_GPIO(STEPPER_E);
+    CLR_GPIO(STEPPER_S);
+    CLR_GPIO(STEPPER_W);
+    OUT_GPIO(STEPPER_N);       // set as outputs
+    OUT_GPIO(STEPPER_E);
+    OUT_GPIO(STEPPER_S);
+    OUT_GPIO(STEPPER_W);
 }
 
 // Given number of steps, (re)start the stepper. Step forward if steps > 0,

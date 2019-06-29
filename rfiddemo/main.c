@@ -4,14 +4,14 @@ int main(void)
     start_threads(); // starts the tick thread, there aren't any others
 
     // init the console
-    FILE *serial = init_serial(115200UL);
+    init_serial();
 
     if (!init_mfrc522())
     {
-        fprintf(serial, "Failed to initialize card reader.\r\n");
+        printf("Failed to initialize card reader.\n");
         while(1) sleep_ticks(1000000000);
     }
-    fprintf(serial, "Ready for card swipe!\r\n");
+    printf("Ready for card swipe!\n");
     while(1)
     {
         uint8_t uid[10];
@@ -26,15 +26,15 @@ int main(void)
             case 4:
             case 7:
             case 10:
-                fprintf(serial, "Got UID ");
-                for (int i=0; i < got; i++) fprintf(serial, "%02X", uid[i]);
-                fprintf(serial,"\r\n");
+                printf("Got UID ");
+                for (int i=0; i < got; i++) printf("%02X", uid[i]);
+                printf("\r\n");
                 break;
 
             // Error status is also normal and in real life would not report
             // it, but for this demo we'll be verbose.
             default:
-                fprintf(serial, "Got error %d\r\n", got);
+                printf("Got error %d\r\n", got);
                 break;
         }
     }

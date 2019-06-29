@@ -12,6 +12,7 @@
 
 // Using UNO R3
 #define F_CPU 16000000      // 16Mhz
+#include "gpio.h"
 #include "uno_r3.h"
 
 // Serial transmit and receive pins are GPIO00 and GPIO01.
@@ -28,7 +29,6 @@
 #include "ticks.h"
 
 // DHT11 temp/humidity sensor
-#define DHT11_IO GPIO02     // requires one i/o pin
 #include "dht11.h"
 
 // PWM via timers we're not using for something else

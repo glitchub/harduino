@@ -19,15 +19,15 @@
 #define DATA 3            // Send data (RS high)
 static void send(int8_t mode, uint8_t data)
 {
-    if (mode & 2) PORT(LCD_RS) |= BIT(LCD_RS); else PORT(LCD_RS) &= NOBIT(LCD_RS); // set register select
+    if (mode & 2) SET_GPIO(LCD_RS); else CLR_GPIO(LCD_RS); // set register select
     for (int8_t n=0; n <= (mode & 1); n++, data<<=4)
     {
-        PORT(LCD_E) |= BIT(LCD_E);
-        if (data & 0x10) PORT(LCD_D4) |= BIT(LCD_D4); else PORT(LCD_D4) &= NOBIT(LCD_D4);
-        if (data & 0x20) PORT(LCD_D5) |= BIT(LCD_D5); else PORT(LCD_D5) &= NOBIT(LCD_D5);
-        if (data & 0x40) PORT(LCD_D6) |= BIT(LCD_D6); else PORT(LCD_D6) &= NOBIT(LCD_D6);
-        if (data & 0x80) PORT(LCD_D7) |= BIT(LCD_D7); else PORT(LCD_D7) &= NOBIT(LCD_D7);
-        PORT(LCD_E) &= NOBIT(LCD_E);
+        SET_GPIO(LCD_E);
+        if (data & 0x10) SET_GPIO(LCD_D4); else CLR_GPIO(LCD_D4);
+        if (data & 0x20) SET_GPIO(LCD_D5); else CLR_GPIO(LCD_D5);
+        if (data & 0x40) SET_GPIO(LCD_D6); else CLR_GPIO(LCD_D6);
+        if (data & 0x80) SET_GPIO(LCD_D7); else CLR_GPIO(LCD_D7);
+        CLR_GPIO(LCD_E);
     }
     waituS(40);
 }
@@ -97,12 +97,12 @@ void init_lcd(uint8_t l, uint8_t c)
     curc=curl=0;
 
     // Pins are outputs
-    DDR(LCD_D4) |= BIT(LCD_D4);
-    DDR(LCD_D5) |= BIT(LCD_D5);
-    DDR(LCD_D6) |= BIT(LCD_D6);
-    DDR(LCD_D7) |= BIT(LCD_D7);
-    DDR(LCD_RS) |= BIT(LCD_RS);
-    DDR(LCD_E)  |= BIT(LCD_E);
+    OUT_GPIO(LCD_D4);
+    OUT_GPIO(LCD_D5);
+    OUT_GPIO(LCD_D6);
+    OUT_GPIO(LCD_D7);
+    OUT_GPIO(LCD_RS);
+    OUT_GPIO(LCD_E);
 
     sleep_ticks(50);                      // Allow display 50mS to come out of power-on reset
 

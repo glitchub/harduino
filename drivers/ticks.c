@@ -60,6 +60,38 @@ THREAD(ticker, 50)
     }
 }
 
+// insert sleeper s into sleeping list
+// saves couple bytes of stack this way
+inline static void insert(struct sleeper *s)
+{
+    if (!sleeping)
+    {
+        sleeping=s;
+        return;
+    }
+        struct sleeper **sp = &sleeping;    // for each sleeping thread
+        while (1)
+        {
+       if ((*sp)->ticks < s->ticks)     // if they expire before us
+            {
+           s->ticks -= (*sp)->ticks;    // we go after, decrement our count
+                if (!(*sp)->next)           // end of list?
+                {
+               (*sp)->next=s;           // just link us in
+                    break;
+                }
+                sp=*(void **)sp;            // else keep descending
+            }
+            else
+            {
+           (*sp)->ticks -= s->ticks;    // they expire after us, adjust their count
+           s->next=(*sp);               // and insert us
+           *sp=s;
+                break;
+            }
+        }
+}
+
 // Suspend calling thread for specified number of ticks. The sleeping list is
 // sorted in order of next thread to expire.
 void sleep_ticks(int32_t t)
@@ -69,36 +101,10 @@ void sleep_ticks(int32_t t)
     struct sleeper s;                       // sleeper struct goes on the stack
     memset(&s, 0, sizeof s);
     s.ticks=t;
-
-    if (!sleeping)                          // nobody sleeping?
-    {
-        sleeping = &s;                      // now there is
-    } else
-    {
-        struct sleeper **sp = &sleeping;    // for each sleeping thread
-        while (1)
-        {
-            if ((*sp)->ticks < s.ticks)     // if they expire before us
-            {
-                s.ticks -= (*sp)->ticks;    // we go after, decrement our count
-                if (!(*sp)->next)           // end of list?
-                {
-                    (*sp)->next=&s;         // just link us in
-                    break;
-                }
-                sp=*(void **)sp;            // else keep descending
-            }
-            else
-            {
-                (*sp)->ticks -= s.ticks;    // they expire after us, adjust their count
-                s.next=(*sp);               // and insert us
-                *sp=&s;
-                break;
-            }
-        }
-    }
+    insert(&s);
     suspend(&s.sem);                       // suspend here until tick thread releases us
 }
+
 #else
 // Not threaded, call init_ticks() from main to start tick interrupt.
 void init_ticks(void)

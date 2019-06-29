@@ -57,7 +57,14 @@ bool writeable_serial(void)
 }
 
 #ifdef SERIAL_STDIO
-static int put(char c, FILE *f) { (void) f; if (!UCSR0B) return EOF; write_serial(c); return 0; }
+static int put(char c, FILE *f)
+{
+    (void) f;
+    if (!UCSR0B) return EOF;
+    if (c == '\n') write_serial('\r');              // \n -> \r\n
+    write_serial(c);
+    return 0;
+}
 #endif
 #endif
 
@@ -71,8 +78,10 @@ static semaphore rxsem;
 
 ISR(USART_RX_vect)
 {
-    char c = UDR0;                                  // this clears the interrupt
-    if (rxn == SERIAL_RX_SIZE) return;              // oops, receive queue overflow
+    bool err = UCSR0A & 0x1c;                       // framing, overrun, parity error?
+    char c = UDR0;                                  // get the char, reset the interrupt
+    if (err) return;                                // but ignore error
+    if (rxn == SERIAL_RX_SIZE) return;              // or receive queue overflow
     rxq[(rxo + rxn) % SERIAL_RX_SIZE] = c;          // insert into queue
     rxn++;                                          // note another
 #ifdef THREADED
@@ -108,30 +117,38 @@ bool readable_serial(void)
 }
 
 #ifdef SERIAL_STDIO
-static int get(FILE *f) { (void) f; return (int)((unsigned)read_serial()); }
+static int get(FILE *f)
+{
+    (void) f;
+    int c = (int)((unsigned)read_serial());
+    return (c=='\r') ? '\n' : c;                    // \r -> \n
+}
 #endif
 #endif
 
 #ifdef SERIAL_STDIO
-// Static file handle for fprintf, etc. Note do NOT fclose this handle.
+// Static file handle for printf, etc. Note do NOT fclose this handle.
 static FILE handle;
 #endif
 
-// Init the serial port at specified baud rate
-#ifdef SERIAL_STDIO
-FILE *init_serial(uint32_t baud)
-#else
-void init_serial(uint32_t baud)
-#endif
+// Init the serial port for 115200 baud, N-8-1
+void init_serial(void)
 {
-    UBRR0 = (F_CPU/(8*baud))-1;             // use the X2 divisor
-    UCSR0C = 0x06;                          // N-8-1
+#if F_CPU == 16000000L
+    UBRR0 = 16;                             // X2 divisor
     UCSR0A = 2;                             // set UX20
+#elif F_CPU == 8000000L
+    UBRR0 = 8;                              // X2 divisor
+    UCSR0A = 2;                             // set UX20
+#else
+#error F_CPU not supported
+#endif
 #if SERIAL_TX_SIZE
 #ifdef SERIAL_STDIO
     handle.put = put;
     handle.flags = _FDEV_SETUP_WRITE;
 #endif
+    UCSR0C = 0x06;                          // N-8-1
     UCSR0B |= 0x08;                         // transmit pin enable
 #endif
 #if SERIAL_RX_SIZE
@@ -142,6 +159,13 @@ void init_serial(uint32_t baud)
     UCSR0B |= 0x90;                         // receive interrupt enable, receive pin enable
 #endif
 #ifdef SERIAL_STDIO
-    return &handle;
+    stdin=stdout=&handle;                   // use handle for stdin and stdout
 #endif
+}
+
+// return pressed key or -1 if none
+int key_press(void)
+{
+    if (!readable_serial()) return -1;
+    return getchar();
 }

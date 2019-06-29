@@ -59,7 +59,7 @@ bool xfer_spi(uint8_t *txdata, uint8_t txcount, uint8_t rxskip, uint8_t *rxdata,
         (rxcount && !rxdata) || (rxskip && !rxcount)) return 0;
     suspend(&mutex);
     txd=txdata; txc=txcount; rxs=rxskip; rxd=rxdata; rxc=rxcount;
-    PORT(SPI_SS) &= NOBIT(SPI_SS);      // take SS low
+    CLR_GPIO(SPI_SS);                   // take SS low
     SPSR; SPDR;                         // reset latent interrupt
     if (txc)                            // maybe send first byte
     {
@@ -69,7 +69,7 @@ bool xfer_spi(uint8_t *txdata, uint8_t txcount, uint8_t rxskip, uint8_t *rxdata,
     SPCR |= 0x80;                       // let ISR do the rest
     sei();                              // make sure interrupts are enabled
     suspend(&complete);                 // wait for transfer complete
-    PORT(SPI_SS) |= BIT(SPI_SS);        // take SS high
+    SET_GPIO(SPI_SS);                   // take SS high
     release(&mutex);
     return 1;
 }
@@ -78,11 +78,11 @@ bool xfer_spi(uint8_t *txdata, uint8_t txcount, uint8_t rxskip, uint8_t *rxdata,
 void init_spi(void)
 {
     suspend(&mutex);
-    PORT(SPI_SS) |= BIT(SPI_SS);        // SS high
-    DDR(SPI_SS) |= BIT(SPI_SS);         // SS is output
-    DDR(SPI_MISO) &= NOBIT(SPI_MISO);   // MISO is input
-    DDR(SPI_MOSI) |= BIT(SPI_MOSI);     // MOSI is output
-    DDR(SPI_SCK) |= BIT(SPI_SCK);       // SCK is output
+    SET_GPIO(SPI_SS);                   // SS high
+    OUT_GPIO(SPI_SS);                   // SS is output
+    IN_GPIO(SPI_MISO);                  // MISO is input
+    OUT_GPIO(SPI_MOSI);                 // MOSI is output
+    OUT_GPIO(SPI_SCK);                  // SCK is output
     SPCR = 0x40|(SPI_ORDER<<5)|0x10|(SPI_MODE<<2)|SPI_CLOCK;
     release(&mutex);
 }

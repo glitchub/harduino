@@ -9,6 +9,8 @@
 
 // Using UNO R3
 #define F_CPU 16000000      // 16Mhz
+
+#include "gpio.h"
 #include "uno_r3.h"
 
 // millisecond tick driver
@@ -35,7 +37,7 @@
 #include "lcd.h"
 
 // DHT11 temp/humidity sensor
-#define DHT11_IO GPIO12     // requires one i/o pin
+//#define DHT11_IO GPIO12     // requires one i/o pin
 #include "dht11.h"
 
 // SR04 ultrasonic range module
