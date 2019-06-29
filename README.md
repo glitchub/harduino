@@ -1,6 +1,4 @@
-Harduino - support for Arduino hardware without the Arduino IDE.
-
-Requires avr-gcc/binutils, and the avrdude downloader.
+Harduino - native support for AVR-based systems such as Arduino. Only requirements are avr-gcc/binutils, avr-libc, and the avrdude downloader.
 
 Projects:
 
