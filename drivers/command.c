@@ -1,5 +1,8 @@
 // Command line parser and execution
 // Commands are defined the COMMAND macro in cli.h
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 
 // String scanning states
 #define WHITE 0

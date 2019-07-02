@@ -1,5 +1,7 @@
 // Definitions for Arduino Uno R3
 
+#define F_CPU 16000000      // 16Mhz
+
 #define GPIO00 GPIO(D,0)
 #define GPIO01 GPIO(D,1)
 #define GPIO02 GPIO(D,2)

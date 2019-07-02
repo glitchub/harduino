@@ -1,10 +1,12 @@
 // Serial port driver
 
 // SERIAL_TX_SIZE and SERIAL_RX_SIZE define the size of ram buffer allocated
-// for the corresponding function, 0 (or undefined) disables the function entirely.
-#if SERIAL_TX_SIZE>255 || SERIAL_RX_SIZE>255 || SERIAL_TX_SIZE<0 || SERIAL_RX_SIZE<0 || (!SERIAL_TX_SIZE && !SERIAL_RX_SIZE)
-#error "SERIAL_TX_SIZE/SERIAL_RX_SIZE config is invalid"
-#endif
+// for the corresponding function, 0 (or undefined) disables buffering entirely
+#define SERIAL_TX_SIZE 60   // transmit buffer size, must be 0 to 255
+#define SERIAL_RX_SIZE 4    // receive buffer size, must be 0 to 255
+
+// If defined, enable printf()
+#define SERIAL_STDIO 1      
 
 #ifdef THREADED
 // a transmit semaphore, counts the space in the transmit buffer

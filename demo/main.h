@@ -37,7 +37,7 @@
 #include "lcd.h"
 
 // DHT11 temp/humidity sensor
-//#define DHT11_IO GPIO12     // requires one i/o pin
+#define DHT11_IO GPIO12     // requires one i/o pin
 #include "dht11.h"
 
 // SR04 ultrasonic range module

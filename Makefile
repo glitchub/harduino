@@ -24,24 +24,31 @@ endif
 
 ifneq (${PROJECT},)
 
-CFLAGS=-g -Os -Wall -Werror -std=gnu99
+CFLAGS=-Wall -Werror -std=gnu99
+CFLAGS+=-Os
+#FLAGS+=-g
 #CFLAGS+=-save-temps
+
+CORE=ticks serial threads command
 
 # this defines ${FILES}
 include ${PROJECT}/make.inc
+FILES+=main
 
-OBJS=$(addprefix ${BUILD}/,main.o $(addsuffix .o,${FILES}))
+OBJS=$(addprefix ${BUILD}/,$(addsuffix .o,${FILES}))
 
 VPATH=${PROJECT} drivers
 
 .PHONY: ${PROJECT} default
 ${PROJECT} default: ${BUILD}/${PROJECT}.hex
         # print memory usage
-	@${PREFIX}size -A $(basename $<).elf | \
+	@${PREFIX}nm ${BUILD}/${PROJECT}.elf | \
 	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
 	     /N __heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
 	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
-	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } }'
+	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; \
+                   if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } \
+                 }'
 
 ${BUILD}/${PROJECT}.hex: ${BUILD}/${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
 
@@ -62,7 +69,7 @@ ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
 	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
 ${BUILD}/%.o: %.c %.h main.h ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h ${CFLAGS} -c -o $@ $<
+	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include main.h ${CFLAGS} -c -o $@ $<
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
 # create empty build directory if necessary
@@ -73,7 +80,7 @@ ${BUILD}/.current.${PROJECT}:
 
 .PHONY: install
 install: ${BUILD}/${PROJECT}.hex
-	avrdude -q -c arduino -p "${CHIP} -P "$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)" -b 115200 -U "flash:w:$<:i"
+	avrdude -q -c arduino -p "${CHIP}" -P "$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)" -b 115200 -U "flash:w:$<:i"
 
 # Project simulation: 'make sim' in one window, and then 'make gdb' in another.
 # simavr is from https://github.com/buserror/simavr
