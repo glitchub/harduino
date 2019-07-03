@@ -24,27 +24,27 @@ endif
 
 ifneq (${PROJECT},)
 
+VPATH=${PROJECT} drivers core
+
 CFLAGS=-Wall -Werror -std=gnu99
 CFLAGS+=-Os
 #FLAGS+=-g
 #CFLAGS+=-save-temps
 
-CORE=ticks serial threads command
-
-# this defines ${FILES}
+# this defines ${DRIVERS}
 include ${PROJECT}/make.inc
-FILES+=main
 
-OBJS=$(addprefix ${BUILD}/,$(addsuffix .o,${FILES}))
+# always build core files
+CORE=$(basename $(notdir $(wildcard core/*.c)))
 
-VPATH=${PROJECT} drivers
+OBJS=$(addprefix ${BUILD}/,$(addsuffix .o,main ${CORE} ${DRIVERS}))
 
 .PHONY: ${PROJECT} default
 ${PROJECT} default: ${BUILD}/${PROJECT}.hex
         # print memory usage
 	@${PREFIX}nm ${BUILD}/${PROJECT}.elf | \
 	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
-	     /N __heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
+	     /Nn__heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
 	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
 	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; \
                    if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } \
@@ -68,8 +68,8 @@ ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
 	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
-${BUILD}/%.o: %.c %.h main.h ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include main.h ${CFLAGS} -c -o $@ $<
+${BUILD}/%.o: %.c %.h core.h ${BUILD}/.current.${PROJECT}
+	${PREFIX}gcc -mmcu=${CHIP} -I./${PROJECT} -I./core -I./drivers $(addprefix -include ,main.h core.h $(addsuffix .h,${DRIVERS})) ${CFLAGS} -c -o $@ $<
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
 # create empty build directory if necessary

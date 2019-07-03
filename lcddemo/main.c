@@ -1,4 +1,5 @@
 // LCD module demo
+
 #define LED GPIO13                              // on-board LED
 
 // The LCD controller is operated in write-only 4-bit mode and requires only 6

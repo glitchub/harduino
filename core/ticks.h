@@ -1,8 +1,24 @@
-// Delay up to 16384 microseconds
+// Tick counter, using TIMER2. In theory ticsk are milliseconds, in practice
+// the resonators are inaccurate.
+
+// Return ticks (aka milliseconds) since boot
+uint32_t get_ticks(void);
+
+// Suspend calling thread for specified ticks.
+void sleep_ticks(int32_t ticks);
+
+// Sleep until specified tick count is reached (return immediately if diff is
+// >= 2^31).
+#define sleep_until(t) sleep_ticks((t)-get_ticks())
+
+// True if tick value t is less than current ticks
+#define expired(t) ((int32_t)(get_ticks()-(t))>=0)
+
+// Inline delay up to 16384 microseconds
 static inline void waituS(uint16_t N)
 {
     if (!N) return;
-#if F_CPU == 16000000L
+#if MHZ == 16
     // spin N * 16 cycles
     asm volatile (
         "1: nop         \n\t"
@@ -22,7 +38,7 @@ static inline void waituS(uint16_t N)
         : "=w" (N)
         : "0" (N)
     );
-#elif F_CPU == 8000000L
+#elif MHZ == 8
     // spin N * 8 cycles
     asm volatile (
         "1: nop         \n\t"
@@ -35,6 +51,6 @@ static inline void waituS(uint16_t N)
         : "0" (N)
     );
 #else
-#error "F_CPU not supported"
+#error "MHZ not supported"
 #endif
 }

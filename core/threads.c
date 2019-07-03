@@ -1,5 +1,4 @@
 // AVR threads
-#include <avr/sleep.h>
 
 semaphore __runnable;
 

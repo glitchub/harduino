@@ -1,22 +1,14 @@
 // Tick counter, using TIMER2. In theory we're counting milliseconds, but
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
-
 static volatile uint32_t ticks;
-#ifdef THREADED
 static semaphore tick_sem;                  // released by the ISR to wake the ticker thread
-#define resolution 8                        // how many ticks per release, should be a power of 2!
-#endif
 ISR(TIMER2_COMPA_vect)
 {
-    ticks++;                                // this will wrap about every 50 days
-#ifdef THREADED
-    if (!(ticks % resolution))              // wake ticker thread every few
+    ticks+=TICKMS;                          // this will wrap about every 50 days
         release(&tick_sem);
-#endif
 }
 
-#ifdef THREADED
 // context for sleeping thread
 volatile struct sleeper
 {
@@ -32,25 +24,74 @@ static struct sleeper *sleeping;
 // "bottom half", releasing sleeping threads with expired timers.
 THREAD(ticker, 50)
 {
-    // first init the tick in interrupt
-    TCNT2 = 0;          // start from initial value
+    TCNT2 = 0;                              // start from initial count
     ticks = 0;
     TCCR2A = 2;         // CTC mode
-#if F_CPU==16000000L
-    OCR2A = 249;        // interrupt every 250 clocks
-    TCCR2B = 4;         // 1/64 clock == 250Khz
-#elif F_CPU==8000000L
-    OCR2A = 124;        // interrupt every 125 clocks
-    TCCR2B = 4;         // 1/64 clock == 125Kz
+
+#if MHZ==8
+    #if TICKMS==1
+        // 8 Mhz, 1 mS: div=64, count=125
+        TCCR2B = 4;
+        OCR2A = 124;
+    #elif TICKMS==2
+        // 8 Mhz, 2 mS: div=128, count=125
+        TCCR2B = 5;
+        OCR2A = 124;
+    #elif TICKMS==4
+        // 8 Mhz, 4 mS: div=256, count=125
+        TCCR2B = 6;
+        OCR2A = 124;
+    #elif TICKMS==8
+        // 8 Mhz, 8 mS: div=256, count=250
+        TCCR2B = 6;
+        OCR2A = 249;
+    #elif TICKMS==16
+        // 8 Mhz, 16 mS: div=1024, count=125
+        TCCR2B = 7;
+        OCR2A = 124;
+    #elif TICKMS==32
+        // 8 Mhz, 32 mS: div=1024, count=250
+        TCCR2B = 7;
+        OCR2A = 249;
+    #else
+        #error "Unsupported TICKMS"
+    #endif
+#elif MHZ==16
+    #if TICKMS==1
+        // 16 Mhz, 1 mS: div=128, count=125
+        TCCR2B = 5;
+        OCR2A = 124;
+    #elif TICKMS==2
+        // 16 Mhz, 2 mS: div=256, count=125
+        TCCR2B = 6;
+        OCR2A = 124;
+    #elif TICKMS==4
+        // 16 Mhz, 4 mS: div=256, count=250
+        TCCR2B = 6;
+        OCR2A = 249;
+    #elif TICKMS==8
+        // 16 Mhz, 8 mS: div=1024, count=125
+        TCCR2B = 7;
+        OCR2A = 124;
+    #elif TICKMS==16
+        // 16 Mhz, 16 mS: div=1024, count=250
+        TCCR2B = 7;
+        OCR2A = 249;
+    #else
+        #error "Unsupported TICKMS"
+    #endif
 #else
-#error "F_CPU not supported"
+    #error "Unsupported MHZ"
 #endif
+
     TIMSK2 = 2;         // enable OCIE2A interrupt
+    wdt_enable(WDTO_120MS);                 // start watchdog
     while(1)
     {
+        wdt_reset();                        // reset watchdog
         suspend(&tick_sem);                 // suspend until interrupt
         if (!sleeping) continue;
-        sleeping->ticks -= resolution;      // decrement first sleeping thread
+        sleeping->ticks -= TICKMS;
         while (sleeping->ticks <= 0)        // expired?
         {
             release(&(sleeping->sem));      // release it
@@ -104,41 +145,6 @@ void sleep_ticks(int32_t t)
     insert(&s);
     suspend(&s.sem);                       // suspend here until tick thread releases us
 }
-
-#else
-// Not threaded, call init_ticks() from main to start tick interrupt.
-void init_ticks(void)
-{
-    TCNT2 = 0;          // start from initial value
-    ticks = 0;
-    TCCR2A = 2;         // CTC mode
-#if F_CPU==16000000L
-    OCR2A = 249;        // interrupt every 250 clocks
-    TCCR2B = 4;         // 1/64 clock == 250Khz
-#elif F_CPU==8000000L
-    OCR2A = 124;        // interrupt every 125 clocks
-    TCCR2B = 4;         // 1/64 clock == 125Kz
-#else
-#error "F_CPU not supported"
-#endif
-    TIMSK2 = 2;         // enable OCIE2A interrupt
-}
-#include <avr/sleep.h>
-
-// Not threaded, spin for specified ticks, sleeps if sleep_mode() has been set
-void sleep_ticks(int32_t t)
-{
-    cli();
-    uint32_t u=ticks+t;
-    while ((int32_t)(u-ticks)>0)            // while not expired
-    {
-        sei();
-        sleep_cpu();                        // no-op if sleep not enabled
-        cli();
-    }
-    sei();
-}
-#endif
 
 // Return current tick count
 uint32_t get_ticks(void)

@@ -1,8 +1,5 @@
 // Command line parser and execution
 // Commands are defined the COMMAND macro in cli.h
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
 
 // String scanning states
 #define WHITE 0
@@ -23,7 +20,9 @@ static _command *lookup(char *name)
 // Delete character at *s, slide all following characters left
 static inline void del(char *s) { for(;*s;s++) *s = *(s+1); }
 
-#define MAXARGS 8
+// adjust these as required to save stack
+#define MAXARGS 6 // max tokens per line, including the command
+#define MAXLEN 64 // max command line length
 
 // parse and execute command string, return 0 on success, non-zero on error
 int8_t execute(char *s)
@@ -176,10 +175,18 @@ int8_t stacks(int8_t argc, char *argv[])
 COMMAND("stacks", NULL, "show unused stacks", stacks);
 #endif
 
+// reset CPU
+int8_t reset(int8_t argc, char *argv[])
+{
+    cli();      // interrupts off
+    while(1);   // and spin until watchdog!
+}
+COMMAND("reset", NULL, "reset the CPU", reset);
+
 // user command loop, never returns
-static char cmdline[64];
 void __attribute__((noreturn)) command(const char *prompt)
 {
+    char cmdline[MAXLEN];
     next: while(1)
     {
         uint8_t n=0;                                // number of chars

@@ -1,9 +1,5 @@
 // LCD module driver, for a controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
-#ifndef LCD_H
-#define LCD_H
-
-#include <stdio.h>
 
 // if defined, support fprintf(lcd->handle,...) etc 
 #define LCD_STDIO
@@ -31,4 +27,3 @@ void init_lcd(lcd *l);
 //   \r - move cursor to first column of current line
 //   \v - clear text to end of line
 void write_lcd(lcd *l, int8_t c);
-#endif
