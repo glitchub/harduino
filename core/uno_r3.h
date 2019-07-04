@@ -1,4 +1,9 @@
 // Definitions for Arduino Uno R3
+
+// Runs at 16 Mhz
+#define MHZ 16
+
+// Map pin labels to GPIOs
 #define GPIO00 GPIO(D,0)
 #define GPIO01 GPIO(D,1)
 #define GPIO02 GPIO(D,2)

@@ -1,5 +1,4 @@
 // Command line parser and execution
-// Commands are defined the COMMAND macro in cli.h
 
 // String scanning states
 #define WHITE 0
@@ -123,7 +122,7 @@ int8_t help(int8_t argc, char *argv[])
 COMMAND("help", "?", "show this list", help);
 
 // read memory
-int8_t cmd_mem(int8_t argc, char *argv[])
+int8_t mem(int8_t argc, char *argv[])
 {
     if (argc < 2 || argc > 3) die("Usage: mem address [byte]\n");
     uint16_t addr = (uint16_t)strtoul(argv[1], NULL, 0);
@@ -137,7 +136,7 @@ int8_t cmd_mem(int8_t argc, char *argv[])
     printf("%s %04X = %02X\n", (argc==3)?"Wrote":"Read", addr, byte);
     return 0;
 }
-COMMAND("mem", NULL, "read/write memory", cmd_mem);
+COMMAND("mem", NULL, "read/write memory", mem);
 
 // show uptime
 int8_t uptime(int8_t argc, char *argv[])

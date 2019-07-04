@@ -1,5 +1,8 @@
-// Tick counter, using TIMER2. In theory ticsk are milliseconds, in practice
+// Tick counter, using TIMER2. In theory ticks are milliseconds, in practice
 // the resonators are inaccurate.
+
+// Initialize tick interrupt
+void init_ticks(void);
 
 // Return ticks (aka milliseconds) since boot
 uint32_t get_ticks(void);

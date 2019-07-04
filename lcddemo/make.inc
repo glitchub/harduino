@@ -1,7 +1,3 @@
-# Demo project
-
-# CPU
+# LCD demo
 CHIP=atmega328p
-
-# Drivers to build 
-DRIVERS=lcd
+DRIVERS=serial command lcd threads

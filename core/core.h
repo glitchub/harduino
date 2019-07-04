@@ -9,11 +9,8 @@
 #include <avr/boot.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <avr/eeprom.h>
 
 #include "gpio.h"
-// XXX use BOARD macro
-#include "uno_r3.h"
-#include "ticks.h"
-#include "serial.h"
-#include "command.h"
-#include "threads.h"
+
+#include BOARD

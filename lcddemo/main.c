@@ -25,7 +25,7 @@ static int8_t wlcd(int8_t argc, char *argv[])
 }
 COMMAND("lcd", NULL, "Write to LCD", wlcd);
 
-THREAD(clock, 64)
+THREAD(clock, 134)
 {
     OUT_GPIO(LED);                              // Make the LED an output
     init_lcd(&glass);                           // 2x16 LCD module
@@ -34,13 +34,13 @@ THREAD(clock, 64)
     {
         TOG_GPIO(LED);                          // flash it
         uint32_t now = get_ticks()/1000;        // get current seconds    
-        uint8_t d=now / 86400UL;
-        uint8_t h=(now % 86400UL) / 3600;
-        uint8_t m=(now % 3600) / 60;
-        uint8_t s=now % 60;
+        uint8_t d = now / 86400UL;
+        uint8_t h = (now % 86400UL) / 3600;
+        uint8_t m = (now % 3600) / 60;
+        uint8_t s = now % 60;
         // print on second line
         fprintf(&glass.handle, "\f\n%02u:%02u:%02u:%02u\v", d, h, m, s);
-        sleep_ticks(100);
+        sleep_until((now+1)*1000);
     }
 }    
 

@@ -1,12 +1,13 @@
 // Receive NEC IR via timer 1 input capture.
 
-// Detector attaches to ICP1. We assume the detector demodulates the IR signal
-// (e.g. AZ-1838HS optimized for 38Khz).
+// Detector attaches to ICP1 (aka GPIO08 on UnoR3, for example). We assume the
+// detector demodulates the IR signal (e.g. AZ-1838HS optimized for 38Khz).
 
 // NEC_IDLE defines whether the detector output is high or low when not
 // receiving a pulse.
 #ifndef NEC_IDLE
-#error "Must define NEC_IDLE 0 or 1"
+// default, assume hight
+#define NEC_IDLE 1
 #endif
 
 // NEC IR transmission consist of a preamble, 32 data bits, and a postamble.
@@ -19,42 +20,59 @@
 //      Preamble: 9000 uS mark and 2250 uS space
 //      Postamle: 560 uS mark
 
-// We run the clock at F_CPU/8 ticks per second. This converts microseconds to clock ticks.
-#if F_CPU==16000000L
+// Converts microseconds to TIMER1 ticks
+#if MHZ==16
 #define uS(n) ((n)*2)
-#elif F_CPU==8000000L
+#elif MHZ==8
 #define uS(n) (n)
 #else
-#error "F_CPU not supported"
+#error "MHZ not supported"
 #endif
 
-// remember last key code, current detector state
-static volatile uint32_t keycode, state;
+// key queue
+#define KEYS 8
+static volatile uint32_t keys[KEYS];
+static volatile uint8_t head=0, count=0;
+
+// push a key into queue (in interrupt context)
+static inline void push(uint32_t key)
+{
+    if (count < KEYS)
+    {
+        keys[(head+count)%KEYS]=key;
+        count++;
+    }
+}
+
+// IR detector state
+static volatile uint32_t state;
 
 // Reset IR state machine
 static inline void reset(void)
 {
-    TIMSK1 = 0;                         // disable timer interrupts
-    state = 0;                          // reset state
+    TIMSK1 = 0;                                         // disable timer interrupts
+    state = 0;                                          // reset state
 #if NEC_IDLE
-    TCCR1B &= (uint8_t)~(1 << ICES1);   // detector output normally high, so interrupt on low
+    TCCR1B &= (uint8_t)~(1 << ICES1);                   // detector output normally high, so interrupt on low
 #else
-    TCCR1B |= 1 << ICES1;               // detector output normally low, so interrupt on high
+    TCCR1B |= 1 << ICES1;                               // detector output normally low, so interrupt on high
 #endif
-    TIFR1 = 0xff;                       // clear pending interrupts
-    TIMSK1 = 1 << ICIE1;                // enable input capture
+    TIFR1 = 0xff;                                       // clear pending interrupts
+    TIMSK1 = 1 << ICIE1;                                // enable input capture
 }
 
 #define REPEAT 0xC0DED00D
 
+// interrupt on edge timeout
 ISR(TIMER1_COMPA_vect)
 {
     // Timeout waiting for next edge. A timeout in state 4 means we received a
-    // repeat code, report with magic code.
-    if (state == 4) keycode = REPEAT;
+    // repeat code, push as code 0.
+    if (state == 4) push(0); 
     reset();
 }
 
+// interrupt on input edge
 ISR(TIMER1_CAPT_vect)
 {
     static uint32_t bits;                               // accrued bits
@@ -94,7 +112,7 @@ ISR(TIMER1_CAPT_vect)
 
         case 67:                                        // end of last pulse
             if (width < uS(560-56)) goto irx;           // too short?
-            keycode = bits;                             // ok remember new code
+            push(bits);                                 // ok push new key
           irx:
             reset();                                    // reset state machine
             return;
@@ -104,9 +122,7 @@ ISR(TIMER1_CAPT_vect)
     state++;                                            // advance to next state
 }
 
-static uint32_t pressed;
-
-// Init NEC IR receiver
+// initialize NEC receiver
 void init_nec(void)
 {
     TCNT1 = 0;
@@ -115,34 +131,36 @@ void init_nec(void)
     reset();
 }
 
-// Return 0 if no key event, else set *key and return PRESS for new key or
-// RELEASE for new release (timeout). Note it is possible to get a new PRESS
-// without a prior RELEASE.
-// Assumes start_ticks() has been called.
+// If IR key pressed, set *key and return 1.                                                                                                                                               
+// If IR key released, set *key and return -1.                                                                                                                                              
+// Otherwise return 0.                                                                                                                                                                         
+// It's possible to get a new key press without a previous key release.                    
+static uint32_t pressed; // last pressed key
+static uint32_t timeout; // ticks at last event 
 int8_t get_nec(uint32_t *key)
 {
-    static uint32_t timeout;
-    uint8_t sreg = SREG;
-    cli();
-    uint32_t k = keycode;
-    keycode = 0;
-    SREG = sreg;
-
-    switch(k)
+    if (count)
     {
-        case 0:
-            if (!pressed || !expired(timeout)) return 0;
-            *key=pressed;
-            pressed=0;
-            return NEC_RELEASED;
-
-        case REPEAT:
-            if (pressed) timeout=get_ticks()+110;
-            return 0;
-
-        default:
-            *key = pressed = k;
-            timeout=get_ticks()+110;
-            return NEC_PRESSED;
+        // there's something in the queue
+        uint8_t sreg = SREG;
+        cli();
+        *key=keys[head++]; 
+        head %= KEYS;
+        count--;
+        SREG = sreg;
+        timeout=get_ticks()+110;    // restart timer
+        if (!*key) return 0;        // no event for repeats
+        pressed=*key;
+        return 1;                   // key press
     }
+    
+    if (pressed && expired(timeout))
+    {
+        // timeout
+        *key=pressed;
+        pressed = 0;
+        return -1;                  // key release
+    }
+
+    return 0;
 }

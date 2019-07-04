@@ -9,8 +9,6 @@
 #error "Must define pins SR04_TRIG and SR04_ECHO"
 #endif
 
-#include "waituS.h"
-
 void init_sr04(void)
 {
     OUT_GPIO(SR04_TRIG); // trigger is an output

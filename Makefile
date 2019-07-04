@@ -24,27 +24,26 @@ endif
 
 ifneq (${PROJECT},)
 
-VPATH=${PROJECT} drivers core
-
 CFLAGS=-Wall -Werror -std=gnu99
 CFLAGS+=-Os
-#FLAGS+=-g
+#CFLAGS+=-g
 #CFLAGS+=-save-temps
 
-# this defines ${DRIVERS}
+# This defines ${DRIVERS}, ${CHIP}, etc
 include ${PROJECT}/make.inc
 
-# always build core files
-CORE=$(basename $(notdir $(wildcard core/*.c)))
+# process include files in this order
+INCLUDE:=$(addsuffix .h, main core $(filter threads command,${DRIVERS}) ticks $(filter-out threads command,${DRIVERS}))
 
-OBJS=$(addprefix ${BUILD}/,$(addsuffix .o,main ${CORE} ${DRIVERS}))
+# always build main and ticks
+OBJS=$(addprefix ${BUILD}/, $(addsuffix .o,main ticks ${DRIVERS}))
 
 .PHONY: ${PROJECT} default
 ${PROJECT} default: ${BUILD}/${PROJECT}.hex
         # print memory usage
 	@${PREFIX}nm ${BUILD}/${PROJECT}.elf | \
 	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
-	     /Nn__heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
+	     /N _end/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
 	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
 	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; \
                    if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } \
@@ -68,8 +67,9 @@ ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
 	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
+VPATH=${PROJECT} drivers core
 ${BUILD}/%.o: %.c %.h core.h ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -I./${PROJECT} -I./core -I./drivers $(addprefix -include ,main.h core.h $(addsuffix .h,${DRIVERS})) ${CFLAGS} -c -o $@ $<
+	${PREFIX}gcc -mmcu=${CHIP} -I${PROJECT} -Icore -Idrivers $(addprefix -include , ${INCLUDE}) ${CFLAGS} -c -o $@ $<
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
 # create empty build directory if necessary
