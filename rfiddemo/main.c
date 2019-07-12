@@ -1,19 +1,23 @@
 // Harduino MFRC522 card reader demo
+
+#define LED GPIO13
 int main(void)
 {
-    start_threads(); // starts the tick thread, there aren't any others
-
-    // init the console
+    OUT_GPIO(LED);
+    init_ticks();
     init_serial();
-
     if (!init_mfrc522())
     {
         printf("Failed to initialize card reader.\n");
-        while(1) sleep_ticks(1000000000);
+        while(1); // dead
     }
     printf("Ready for card swipe!\n");
+    
     while(1)
     {
+        sleep_ticks(100);
+        TOG_GPIO(LED);
+
         uint8_t uid[10];
         int8_t got=get_mfrc522(uid);
         switch(got)
@@ -28,13 +32,13 @@ int main(void)
             case 10:
                 printf("Got UID ");
                 for (int i=0; i < got; i++) printf("%02X", uid[i]);
-                printf("\r\n");
+                printf("\n");
                 break;
 
             // Error status is also normal and in real life would not report
             // it, but for this demo we'll be verbose.
             default:
-                printf("Got error %d\r\n", got);
+                printf("Got error %d\n", got);
                 break;
         }
     }

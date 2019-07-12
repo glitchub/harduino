@@ -1,5 +1,9 @@
 // Command line parser and execution
 
+#ifndef THREAD
+#error "Command processing requires the thread driver"
+#endif
+
 // String scanning states
 #define WHITE 0
 #define UNQUOTE 1
