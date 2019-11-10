@@ -1,6 +1,13 @@
 // Tick counter, using TIMER2. In theory we're counting milliseconds, but
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
+
+// Default to four-millisecond tick resolution
+// Higher numbers == less interrupts == lower idle current
+#ifndef TICKMS
+#define TICKMS 4
+#endif
+
 static volatile uint32_t ticks;
 #ifdef THREAD
 static semaphore tick_sem;                  // released by the ISR to wake the ticker thread

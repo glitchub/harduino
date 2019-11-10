@@ -1,7 +1,7 @@
 # Stepper project
 
 # Drivers
-FILES=ticks stepper
+DRIVERS=stepper
 
 # CPU
 CHIP=atmega328p

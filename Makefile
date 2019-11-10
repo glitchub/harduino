@@ -4,6 +4,8 @@ PREFIX=avr-
 
 BUILD=./build
 
+SHELL=/bin/bash -o pipefail
+
 # A project is any subdirectory containing 'make.inc'
 PROJECTS:=$(shell for f in */make.inc; do echo $${f%/*}; done)
 
@@ -55,17 +57,16 @@ ${BUILD}/${PROJECT}.elf: ${BUILD}/${PROJECT}.lds ${OBJS}
 	${PREFIX}gcc -mmcu=${CHIP} -T$< -Wl,-Map=$(basename $@).map -o $@ ${OBJS}
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
-# insert .threads section immediately before end of .text and emit start and end symbols
+# insert .threads and .commands sections immediately before end of .text
 ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
-	{ \
-	  cat $< | \
-	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
-	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
-	; } >$@
+	cat $< | \
+	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
+	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
+	> $@
 
-# gcc outputs default linker script with leading and trailing line of ==='s, use awk to extracts it to file or fail if couldn't
+# gcc outputs default linker script with leading and trailing line of ==='s, use awk to extract
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
+	{ ${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null; true; } | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
 VPATH=${PROJECT} drivers core
 ${BUILD}/%.o: %.c %.h core.h ${BUILD}/.current.${PROJECT}
