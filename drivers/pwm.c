@@ -91,7 +91,7 @@ uint16_t set_timer1_freq(uint16_t hz)
         int32_t t;
         for (prescale = 5; prescale; prescale--)
         {
-            t=(F_CPU/((uint32_t)hz*div[prescale]))-1;
+            t=((MHZ*1000000)/((uint32_t)hz*div[prescale]))-1;
             if (t >= 255) break;
         }
         if (!prescale) t=255, prescale=1; // too high
@@ -110,7 +110,7 @@ uint16_t set_timer1_freq(uint16_t hz)
     }
 
     // return the actual frequency
-    return F_CPU/((uint32_t)div[prescale]*(top+1));
+    return (MHZ*1000000)/((uint32_t)div[prescale]*(top+1));
 }
 
 // Configure PWM2 width 0 to 255, or disable output completely < 0.

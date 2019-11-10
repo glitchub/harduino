@@ -6,7 +6,7 @@ void init_dht11(gpio *pin)
     clr_gpio(pin);
 }
 
-// Read DHT11 attached tio specified gpio, set dc = degrees C and rh =
+// Read DHT11 attached to specified gpio, set dc = degrees C and rh =
 // relative humidity percent and return 0, or non-0 on error.
 int8_t get_dht11(uint8_t *dc, uint8_t *rh, gpio *pin)
 {
