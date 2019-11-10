@@ -1,6 +1,7 @@
 // Harduino MFRC522 card reader demo
 
 #define LED GPIO13
+
 int main(void)
 {
     OUT_GPIO(LED);
@@ -12,7 +13,7 @@ int main(void)
         while(1); // dead
     }
     printf("Ready for card swipe!\n");
-    
+
     while(1)
     {
         sleep_ticks(100);

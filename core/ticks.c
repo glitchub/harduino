@@ -15,9 +15,9 @@ static semaphore tick_sem;                  // released by the ISR to wake the t
 ISR(TIMER2_COMPA_vect)
 {
     ticks+=TICKMS;                          // this will wrap about every 50 days
-#ifdef THREAD    
+#ifdef THREAD
     release(&tick_sem);
-#endif    
+#endif
 }
 
 // initialize tick interrupt
@@ -171,7 +171,7 @@ void sleep_ticks(int32_t t)
     while ((int32_t)(u-ticks)>0)            // while not expired
     {
         sei();
-        sleep_cpu();                       
+        sleep_cpu();
         cli();
     }
     sei();
