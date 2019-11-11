@@ -1,4 +1,2 @@
 #define BOARD "uno_r3.h"
 #define TICKMS 16           // sr04 driver can turn off interrupts up to 26mS
-#define SR04_TRIG GPIO04
-#define SR04_ECHO GPIO05
