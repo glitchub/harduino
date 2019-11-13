@@ -1,5 +1,8 @@
 // Command line parser and execution
-// Commands are defined the COMMAND macro in cli.h
+
+#ifndef THREAD
+#error "Command processing requires the thread driver"
+#endif
 
 // String scanning states
 #define WHITE 0
@@ -20,7 +23,9 @@ static _command *lookup(char *name)
 // Delete character at *s, slide all following characters left
 static inline void del(char *s) { for(;*s;s++) *s = *(s+1); }
 
-#define MAXARGS 8
+// adjust these as required to save stack
+#define MAXARGS 6 // max tokens per line, including the command
+#define MAXLEN 64 // max command line length
 
 // parse and execute command string, return 0 on success, non-zero on error
 int8_t execute(char *s)
@@ -121,7 +126,7 @@ int8_t help(int8_t argc, char *argv[])
 COMMAND("help", "?", "show this list", help);
 
 // read memory
-int8_t cmd_mem(int8_t argc, char *argv[])
+int8_t mem(int8_t argc, char *argv[])
 {
     if (argc < 2 || argc > 3) die("Usage: mem address [byte]\n");
     uint16_t addr = (uint16_t)strtoul(argv[1], NULL, 0);
@@ -135,7 +140,7 @@ int8_t cmd_mem(int8_t argc, char *argv[])
     printf("%s %04X = %02X\n", (argc==3)?"Wrote":"Read", addr, byte);
     return 0;
 }
-COMMAND("mem", NULL, "read/write memory", cmd_mem);
+COMMAND("mem", NULL, "read/write memory", mem);
 
 // show uptime
 int8_t uptime(int8_t argc, char *argv[])
@@ -173,10 +178,18 @@ int8_t stacks(int8_t argc, char *argv[])
 COMMAND("stacks", NULL, "show unused stacks", stacks);
 #endif
 
+// reset CPU
+int8_t reset(int8_t argc, char *argv[])
+{
+    cli();      // interrupts off
+    while(1);   // and spin until watchdog!
+}
+COMMAND("reset", NULL, "reset the CPU", reset);
+
 // user command loop, never returns
-static char cmdline[64];
 void __attribute__((noreturn)) command(const char *prompt)
 {
+    char cmdline[MAXLEN];
     next: while(1)
     {
         uint8_t n=0;                                // number of chars

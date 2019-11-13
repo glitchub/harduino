@@ -1,7 +1,3 @@
-# RFID demo project
-
-# CPU
+# rfid reader demo
 CHIP=atmega328p
-
-# Files to build, other than main.
-FILES=threads ticks serial spi mfrc522
+DRIVERS=serial spi mfrc522

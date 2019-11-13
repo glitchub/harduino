@@ -1,6 +1,22 @@
 // LCD module driver, for a controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
 
+// if defined, support fprintf(lcd->handle,...) etc 
+#define LCD_STDIO
+
+typedef struct
+{
+    gpio *E, *RS, *D4, *D5, *D6, *D7;   // gpios for 6 pins
+    int8_t lines, columns;              // max lines and columns
+    int8_t curl, curc;                  // current line and column
+#ifdef LCD_STDIO
+    FILE handle;                        // file handle for stdio
+#endif
+} lcd;
+
+// Initialize LCD module with defined data structure
+void init_lcd(lcd *l);
+
 // Write character to LCD and move cursor right, not past the end of the
 // line. Note the dispaly does not scroll.
 //
@@ -10,17 +26,4 @@
 //   \n - move cursor to first column of next line, wrap back to first line
 //   \r - move cursor to first column of current line
 //   \v - clear text to end of line
-void write_lcd(int8_t c);
-
-// Initialize LCD module with visible columns and rows (line shifting is not
-// supported).
-#ifdef LCD_STDIO
-// If LCD_STDIO is defined then init_lcd() returns a FILE* that can be used
-// with fprintf, etc. Note the use of stdio adds at least 1Kb to the target
-// image.
-#include <stdio.h>
-FILE *init_lcd(uint8_t lines, uint8_t columns);
-#else
-void init_lcd(uint8_t lines, uint8_t columns);
-#endif
-
+void write_lcd(lcd *l, int8_t c);

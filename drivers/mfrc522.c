@@ -74,7 +74,9 @@ static bool crc(u8 *data, u8 bytes, u8 *target)
     int32_t timeout=get_ticks()+10;                             // give it 10 mS
     while (1)
     {
+#ifdef THREAD
         yield();
+#endif  
         if (rb(Status1Reg) & 0x20) break;                       // until CRC complete
         if (expired(timeout)) return 0;                         // this really should not happen
     }
@@ -98,7 +100,9 @@ static s8 transceive(u8 *txdata, u8 txbits, u8 *rxdata, u8 rxmax, u8 rxalign)
     int32_t timeout=get_ticks()+10;                             // give it 10 mS
     while(1)
     {
+#ifdef THREAD
         yield();
+#endif  
         if (rb(ComIrqReg) & 0x20) break;                        // loop until RxIRq
         if (expired(timeout)) return 0;                         // or timeout
     }

@@ -1,11 +1,5 @@
 // Serial port driver
 
-#ifdef SERIAL_STDIO
-// If SERIAL_STDIO is defined then the serial port becomes "stdout", usable
-// with printf, etc.  Note this will add about 1K to the overall code size.
-#include <stdio.h>
-#endif
-
 // Enable serial port for 115200 baud
 void init_serial(void);
 

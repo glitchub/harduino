@@ -1,7 +1,5 @@
 // Read or write eeprom. A write operation takes about 3.3mS, functions will
 // block while a previous write is in progress.
-#include <avr/eeprom.h>
-
 void write_eeprom(uint16_t offset, uint8_t byte)
 {
     while (!eeprom_is_ready()) yield();
@@ -34,7 +32,7 @@ bool read_eeparam(uint16_t offset, uint8_t *param)
 }
 
 #ifdef COMMAND
-static int8_t cmd_eeprom(int8_t argc, char *argv[])
+static int8_t eeprom(int8_t argc, char *argv[])
 {
     if (argc < 2 || argc > 3) die("Usage: eeprom offset [byte]");
     uint16_t offset = strtoul(argv[1],NULL,0);
@@ -48,5 +46,5 @@ static int8_t cmd_eeprom(int8_t argc, char *argv[])
     printf("%s eeprom %04X = %02X\n", (argc==3)?"Wrote":"Read", offset, byte);
     return 0;
 }
-COMMAND("eeprom", NULL, "read/write eeprom", cmd_eeprom);
+COMMAND("eeprom", NULL, "read/write eeprom", eeprom);
 #endif

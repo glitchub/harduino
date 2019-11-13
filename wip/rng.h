@@ -2,6 +2,6 @@
 // maybe even aperiodic as a function of temperature, supply voltage, etc.
 void init_rng(void);
 
-// Return a random 16-bit number. Wait at least 128 mS after init_rng before
+// Return a random 326-bit number. Wait at least 1000 mS after init_rng before
 // use.
-uint16_t get_rng(void);
+uint32_t get_rng(void);

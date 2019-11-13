@@ -4,6 +4,8 @@ PREFIX=avr-
 
 BUILD=./build
 
+SHELL=/bin/bash -o pipefail
+
 # A project is any subdirectory containing 'make.inc'
 PROJECTS:=$(shell for f in */make.inc; do echo $${f%/*}; done)
 
@@ -24,24 +26,30 @@ endif
 
 ifneq (${PROJECT},)
 
-CFLAGS=-g -Os -Wall -Werror -std=gnu99
+CFLAGS=-Wall -Werror -std=gnu99
+CFLAGS+=-Os
+#CFLAGS+=-g
 #CFLAGS+=-save-temps
 
-# this defines ${FILES}
+# This defines ${DRIVERS}, ${CHIP}, etc
 include ${PROJECT}/make.inc
 
-OBJS=$(addprefix ${BUILD}/,main.o $(addsuffix .o,${FILES}))
+# process include files in this order
+INCLUDE:=$(addsuffix .h, main core $(filter threads command,${DRIVERS}) ticks $(filter-out threads command,${DRIVERS}))
 
-VPATH=${PROJECT} drivers
+# always build main and ticks
+OBJS=$(addprefix ${BUILD}/, $(addsuffix .o,main ticks ${DRIVERS}))
 
 .PHONY: ${PROJECT} default
 ${PROJECT} default: ${BUILD}/${PROJECT}.hex
         # print memory usage
-	@${PREFIX}size -A $(basename $<).elf | \
+	@${PREFIX}nm ${BUILD}/${PROJECT}.elf | \
 	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
-	     /N __heap_start/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
+	     /N _end/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
 	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
-	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } }'
+	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; \
+                   if (ramuse > ramsize) { print "ERROR, RAM EXCEEDS",ramsize,"BYTES"; exit(1) } \
+                 }'
 
 ${BUILD}/${PROJECT}.hex: ${BUILD}/${PROJECT}.elf; ${PREFIX}objcopy -O ihex $< $@
 
@@ -49,20 +57,20 @@ ${BUILD}/${PROJECT}.elf: ${BUILD}/${PROJECT}.lds ${OBJS}
 	${PREFIX}gcc -mmcu=${CHIP} -T$< -Wl,-Map=$(basename $@).map -o $@ ${OBJS}
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
-# insert .threads section immediately before end of .text and emit start and end symbols
+# insert .threads and .commands sections immediately before end of .text
 ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
-	{ \
-	  cat $< | \
-	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
-	  awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
-	; } >$@
+	cat $< | \
+	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
+	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
+	> $@
 
-# gcc outputs default linker script with leading and trailing line of ==='s, use awk to extracts it to file or fail if couldn't
+# gcc outputs default linker script with leading and trailing line of ==='s, use awk to extract
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
+	{ ${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null; true; } | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
-${BUILD}/%.o: %.c %.h main.h ${BUILD}/.current.${PROJECT}
-	${PREFIX}gcc -mmcu=${CHIP} -I ./drivers -I ./${PROJECT} -include ${PROJECT}/main.h ${CFLAGS} -c -o $@ $<
+VPATH=${PROJECT} drivers core
+${BUILD}/%.o: %.c %.h core.h ${BUILD}/.current.${PROJECT}
+	${PREFIX}gcc -mmcu=${CHIP} -I${PROJECT} -Icore -Idrivers $(addprefix -include , ${INCLUDE}) ${CFLAGS} -c -o $@ $<
 	${PREFIX}objdump -aS $@ > $(basename $@).lst
 
 # create empty build directory if necessary
@@ -73,7 +81,7 @@ ${BUILD}/.current.${PROJECT}:
 
 .PHONY: install
 install: ${BUILD}/${PROJECT}.hex
-	avrdude -q -c arduino -p "${CHIP} -P "$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)" -b 115200 -U "flash:w:$<:i"
+	avrdude -q -c arduino -p "${CHIP}" -P "$(firstword $(wildcard /dev/serial/by-id/usb-Arduino*) /dev/ttyACM0)" -b 115200 -U "flash:w:$<:i"
 
 # Project simulation: 'make sim' in one window, and then 'make gdb' in another.
 # simavr is from https://github.com/buserror/simavr

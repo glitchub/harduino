@@ -1,12 +1,14 @@
 // Serial port driver
 
 // SERIAL_TX_SIZE and SERIAL_RX_SIZE define the size of ram buffer allocated
-// for the corresponding function, 0 (or undefined) disables the function entirely.
-#if SERIAL_TX_SIZE>255 || SERIAL_RX_SIZE>255 || SERIAL_TX_SIZE<0 || SERIAL_RX_SIZE<0 || (!SERIAL_TX_SIZE && !SERIAL_RX_SIZE)
-#error "SERIAL_TX_SIZE/SERIAL_RX_SIZE config is invalid"
-#endif
+// for the corresponding function, 0 (or undefined) disables buffering entirely
+#define SERIAL_TX_SIZE 60   // transmit buffer size, must be 0 to 255
+#define SERIAL_RX_SIZE 4    // receive buffer size, must be 0 to 255
 
-#ifdef THREADED
+// If defined, enable printf()
+#define SERIAL_STDIO 1      
+
+#ifdef THREAD
 // a transmit semaphore, counts the space in the transmit buffer
 static semaphore txsem=available(SERIAL_TX_SIZE);
 #endif
@@ -22,9 +24,9 @@ ISR(USART_UDRE_vect)                                // holding register empty
         UDR0=txq[txo];                              // do so
         txo = (txo+1)%SERIAL_TX_SIZE;               // advance to next
         txn--;
-#ifdef THREADED
+#ifdef THREAD        
         release(&txsem);                            // release suspended writer
-#endif
+#endif        
     }
     else
         UCSR0B &= (uint8_t)~(1<<UDRIE0);            // else disable interrupt
@@ -33,7 +35,7 @@ ISR(USART_UDRE_vect)                                // holding register empty
 // Block until space in the transmit queue, then send it
 void write_serial(int8_t c)
 {
-#ifdef THREADED
+#ifdef THREAD    
     suspend(&txsem);                                // suspend while queue is full
 #else
     while (txn == SERIAL_TX_SIZE);                  // spin while queue is full
@@ -49,7 +51,7 @@ void write_serial(int8_t c)
 // Return true if chars can be written without blocking
 bool writeable_serial(void)
 {
-#ifdef THREADED
+#ifdef THREAD
     return is_released(&txsem);
 #else
     return SERIAL_TX_SIZE-txn;
@@ -72,7 +74,7 @@ static int put(char c, FILE *f)
 static volatile uint8_t rxq[SERIAL_RX_SIZE];        // receive queue
 static volatile uint8_t rxo=0, rxn=0;               // index of oldest char and total chars in queue
 
-#ifdef THREADED
+#ifdef THREAD
 static semaphore rxsem;
 #endif
 
@@ -84,15 +86,15 @@ ISR(USART_RX_vect)
     if (rxn == SERIAL_RX_SIZE) return;              // or receive queue overflow
     rxq[(rxo + rxn) % SERIAL_RX_SIZE] = c;          // insert into queue
     rxn++;                                          // note another
-#ifdef THREADED
+#ifdef THREAD    
     release(&rxsem);                                // release suspended reader
-#endif
+#endif    
 }
 
 // Block until character is receive queue then return it
 int8_t read_serial(void)
 {
-#ifdef THREADED
+#ifdef THREAD
     suspend(&rxsem);
 #else
     while (!rxn);                                   // spin whle queue is empty
@@ -109,11 +111,11 @@ int8_t read_serial(void)
 // Return true if characters can be read without blocking
 bool readable_serial(void)
 {
-#ifdef THREADED
+#ifdef THREAD
     return is_released(&rxsem);
-#else
+#else    
     return rxn;
-#endif
+#endif    
 }
 
 #ifdef SERIAL_STDIO
@@ -134,14 +136,14 @@ static FILE handle;
 // Init the serial port for 115200 baud, N-8-1
 void init_serial(void)
 {
-#if F_CPU == 16000000L
+#if MHZ == 16
     UBRR0 = 16;                             // X2 divisor
     UCSR0A = 2;                             // set UX20
-#elif F_CPU == 8000000L
+#elif MHZ == 8
     UBRR0 = 8;                              // X2 divisor
     UCSR0A = 2;                             // set UX20
 #else
-#error F_CPU not supported
+#error MHZ not supported
 #endif
 #if SERIAL_TX_SIZE
 #ifdef SERIAL_STDIO

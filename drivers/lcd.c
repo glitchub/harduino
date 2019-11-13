@@ -1,126 +1,119 @@
 // LCD module driver, for a controller similar to Samsung KS6600, Hitachi
 // HD44780, etc.
 
-// inline delay
-#include "waituS.h"
-
-// The module is operated in read-only 4-bit mode, the D0-D3 pins should be
-// disconnected and RW should be tied low. (A, K and VO pins are
-// hardware-specific, not in scope of this code). The following pins must be
-// defined:
-#if !defined(LCD_D4) || !defined(LCD_D5) || !defined(LCD_D6) || !defined(LCD_D7) || !defined(LCD_RS) || !defined(LCD_E)
-#error "Must define LCD_D4, LCD_D5, LCD_D6, LCD_D7, LCD_RS, and LCD_E"
-#endif
-
 // Send data to display in specified mode and delay for the nominal busy time.
 // Note mode & 1 == send 2 nibbles, mode & 2 == assert RS
 #define CMD4 0            // Send 4-bit command only, from data high nibble
 #define CMD8 1            // Send 8-bit command
 #define DATA 3            // Send data (RS high)
-static void send(int8_t mode, uint8_t data)
+static void send(lcd *l, int8_t mode, uint8_t data)
 {
-    if (mode & 2) SET_GPIO(LCD_RS); else CLR_GPIO(LCD_RS); // set register select
+    if (mode & 2) set_gpio(l->RS); else clr_gpio(l->RS); // set register select
     for (int8_t n=0; n <= (mode & 1); n++, data<<=4)
     {
-        SET_GPIO(LCD_E);
-        if (data & 0x10) SET_GPIO(LCD_D4); else CLR_GPIO(LCD_D4);
-        if (data & 0x20) SET_GPIO(LCD_D5); else CLR_GPIO(LCD_D5);
-        if (data & 0x40) SET_GPIO(LCD_D6); else CLR_GPIO(LCD_D6);
-        if (data & 0x80) SET_GPIO(LCD_D7); else CLR_GPIO(LCD_D7);
-        CLR_GPIO(LCD_E);
+        set_gpio(l->E);
+        if (data & 0x10) set_gpio(l->D4); else clr_gpio(l->D4);
+        if (data & 0x20) set_gpio(l->D5); else clr_gpio(l->D5);
+        if (data & 0x40) set_gpio(l->D6); else clr_gpio(l->D6);
+        if (data & 0x80) set_gpio(l->D7); else clr_gpio(l->D7);
+        clr_gpio(l->E);
     }
     waituS(40);
 }
 
-// Display lines/columns, and current line/column
-static uint8_t lines, columns, curl, curc;
-
-static void set(int8_t l, int8_t c)
+// set lcd line and column
+static void set(lcd *l, int8_t line, int8_t column)
 {
-    curl=l;
-    curc=c;
-    if (curc < 0) curl--, curc=columns-1;
-    if (curc >= columns) curl++, curc=0;
-    if (curl < 0) curl = lines-1;
-    if (curl >= lines) curl = 0;
-    send(CMD8, 0x80 + (curl*0x40) + curc);
+    // wrap, etc
+    if (column < 0) line--, column=l->columns-1;
+    if (column >= l->columns) line++, column=0;
+    if (line < 0) line = l->lines-1;
+    if (line >= l->lines) line = 0;
+    // set position
+    send(l, CMD8, 0x80 + (line*0x40) + column);
+    // and remember it
+    l->curl=line;
+    l->curc=column;
 }
 
 // write character to lcd, handle magic controls
-void write_lcd(int8_t c)
+void write_lcd(lcd *l, int8_t c)
 {
     switch(c)
     {
         case '\b':              // backspace but not past first
-            if (curc) set(curl, curc-1);
+            if (l->curc) set(l, l->curl, l->curc-1);
             break;
 
         case '\f':              // form-feed, home cursor
-            set(0, 0);
+            set(l, 0, 0);
             break;
 
         case '\n':              // line feed, advance to next line
-            set(curl+1, 0);
+            set(l, l->curl+1, 0);
             break;
 
         case '\r':              // carriage return, return to start of current line
-            if (curc) set(curl, 0);
+            if (l->curc) set(l, l->curl, 0);
             break;
 
         case '\v':              // clear to end of line
-            if (curc  == columns-1) break;
-            for (int8_t n=curc; n < columns; n++) send(DATA, ' ');
-            set(curl, curc);
+            if (l->curc  == l->columns-1) break;
+            for (int8_t n=l->curc; n < l->columns; n++) send(l, DATA, ' ');
+            set(l, l->curl, l->curc);
             break;
 
         default:                // write char and advance
-            if (curc == columns-1) break;
-            send(DATA, c);
-            curc++;
+            if (l->curc == l->columns-1) break;
+            send(l, DATA, c);
+            l->curc++;
             break;
     }
 }
 
-// Given display lines and columns, initalize LCD. Requires ticks (with interrupts enabled).
 #ifdef LCD_STDIO
-static int put(char c, FILE *f) { (void)f; write_lcd(c); return 0; }
-static FILE handle = FDEV_SETUP_STREAM(put, NULL, _FDEV_SETUP_WRITE);
-FILE *init_lcd(uint8_t l, uint8_t c)
-#else
-void init_lcd(uint8_t l, uint8_t c)
+// put character to LCD via handle
+static int put(char c, FILE *f) { write_lcd(f->udata, c); return 0; }
 #endif
+
+// initialize lcd, it must define gpios, columns, and lines
+void init_lcd(lcd *l)
 {
-    if (l < 1) l = 1; else if (l > 2) l = 2;
-    if (c < 8) c = 8; else if (c > 40) c = 40;
-    lines=l;
-    columns=c;
-    curc=curl=0;
+    // sanity
+    if (l->lines < 1) l->lines = 1; else if (l->lines > 2) l->lines = 2;
+    if (l->columns < 8) l->columns = 8; else if (l->columns > 40) l->columns = 40;
+    l->curc=l->curl=0;
 
     // Pins are outputs
-    OUT_GPIO(LCD_D4);
-    OUT_GPIO(LCD_D5);
-    OUT_GPIO(LCD_D6);
-    OUT_GPIO(LCD_D7);
-    OUT_GPIO(LCD_RS);
-    OUT_GPIO(LCD_E);
+    out_gpio(l->D4);
+    out_gpio(l->D5);
+    out_gpio(l->D6);
+    out_gpio(l->D7);
+    out_gpio(l->RS);
+    out_gpio(l->E);
 
-    sleep_ticks(50);                      // Allow display 50mS to come out of power-on reset
+    sleep_ticks(50);                            // Allow display 50mS to come out of power-on reset
 
     // But assume the display did *not* just power on, so force a reset anyway
-    send(CMD4, 0x30);
+    send(l, CMD4, 0x30);
     waituS(4100);
-    send(CMD4, 0x30);
+    send(l, CMD4, 0x30);
     waituS(100);
-    send(CMD4, 0x30);
+    send(l, CMD4, 0x30);
 
     // Initialize into 4-bit mode
-    send(CMD4, 0x20);                     // set 4-bit interface
-    send(CMD8, (lines==1) ? 0x20 : 0x28); // function set: 4-bit, N lines, 5x8
-    send(CMD8, 0x0c);                     // display control: lcd on, cursor off, blink off
-    send(CMD8, 0x06);                     // entry mode set: cursor increment, no shift
-    send(CMD8, 0x01);                     // clear display
-    waituS(1500);                         // let clear take affect
+    send(l, CMD4, 0x20);                        // set 4-bit interface
+    send(l, CMD8, (l->lines==1) ? 0x20 : 0x28); // function set: 4-bit, N lines, 5x8
+    send(l, CMD8, 0x0c);                        // display control: lcd on, cursor off, blink off
+    send(l, CMD8, 0x06);                        // entry mode set: cursor increment, no shift
+    send(l, CMD8, 0x01);                        // clear display
+    waituS(1500);                               // let clear take affect
+
 #ifdef LCD_STDIO
-    return &handle;
+    // prepare handle
+    l->handle.put = put;
+    l->handle.get = NULL;
+    l->handle.flags = _FDEV_SETUP_WRITE;
+    l->handle.udata = l;                        // so put() can find the struct
 #endif
 }
