@@ -1,10 +1,9 @@
-// A2D demo, just show all 15 channels
+// A2D demo, just show all 8 channels
 #define LED GPIO13                              // on-board LED
 
 int main(void)
 {
     OUT_GPIO(LED);
-    sei();
     init_ticks();
     init_serial();
 

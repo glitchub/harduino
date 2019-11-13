@@ -1,7 +1,3 @@
-# Stepper project
-
-# Drivers
-DRIVERS=stepper
-
-# CPU
+# Stepper demo
 CHIP=atmega328p
+DRIVERS=stepper

@@ -9,10 +9,10 @@ int main(void)
     init_serial();
     if (!init_mfrc522())
     {
-        printf("Failed to initialize card reader.\n");
+        pprintf("Failed to initialize card reader.\n");
         while(1); // dead
     }
-    printf("Ready for card swipe!\n");
+    pprintf("Ready for card swipe!\n");
 
     while(1)
     {
@@ -31,15 +31,15 @@ int main(void)
             case 4:
             case 7:
             case 10:
-                printf("Got UID ");
-                for (int i=0; i < got; i++) printf("%02X", uid[i]);
-                printf("\n");
+                pprintf("Got UID ");
+                for (int i=0; i < got; i++) pprintf("%02X", uid[i]);
+                pprintf("\n");
                 break;
 
             // Error status is also normal and in real life would not report
             // it, but for this demo we'll be verbose.
             default:
-                printf("Got error %d\n", got);
+                pprintf("Got error %d\n", got);
                 break;
         }
     }

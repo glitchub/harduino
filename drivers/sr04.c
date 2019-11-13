@@ -44,6 +44,7 @@ int16_t get_sr04(gpio *trigger, gpio *echo)
         "2:            \n"
         : "=&e" (loops)
         : "0" (loops), "r" (echo->bit), "e" (echo->pin)
+        : "r0"
     );
     if (!loops)
     {
@@ -63,6 +64,7 @@ int16_t get_sr04(gpio *trigger, gpio *echo)
         "2:            \n"
         : "=&e" (loops)
         : "0" (loops), "r" (echo->bit), "e" (echo->pin)
+        : "r0"
     );
     SREG = sreg;
     if (!loops) return -1;

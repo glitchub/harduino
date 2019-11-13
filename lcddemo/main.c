@@ -3,9 +3,9 @@
 #define LED GPIO13                              // on-board LED
 
 // The LCD controller is operated in write-only 4-bit mode and requires only 6
-// signals from the CPU: D4, D5, D6, D7, E and RS. R/W must be grounded. 
+// signals from the CPU: D4, D5, D6, D7, E and RS. R/W must be grounded.
 
-static lcd glass = 
+static lcd glass =
 {
     .lines=2,
     .columns=16,
@@ -33,7 +33,7 @@ THREAD(clock, 134)
     while(true)
     {
         TOG_GPIO(LED);                          // flash it
-        uint32_t now = get_ticks()/1000;        // get current seconds    
+        uint32_t now = get_ticks()/1000;        // get current seconds
         uint8_t d = now / 86400UL;
         uint8_t h = (now % 86400UL) / 3600;
         uint8_t m = (now % 3600) / 60;
@@ -42,13 +42,12 @@ THREAD(clock, 134)
         fprintf(&glass.handle, "\f\n%02u:%02u:%02u:%02u\v", d, h, m, s);
         sleep_until((now+1)*1000);
     }
-}    
+}
 
 int main(void)
 {
     // init drivers
-    sei();
     init_serial();                              // serial I/O
     start_threads();
-    command(">");                               // go process commands 
+    command(">");                               // go process commands
 }

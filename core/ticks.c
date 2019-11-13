@@ -160,6 +160,7 @@ void init_ticks(void)
 {
     start();
     set_sleep_mode(SLEEP_MODE_IDLE);
+    sei();
 }
 
 // Sleep for specified ticks
