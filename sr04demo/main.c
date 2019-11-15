@@ -14,6 +14,6 @@ int main(void)
     {
         sleep_ticks(250);
         TOG_GPIO(LED);
-        printf("%d\n", get_sr04(&trig, &echo));
+        pprintf("%d\n", get_sr04(&trig, &echo));
     }
 }

@@ -21,7 +21,6 @@ COMMAND(lcd, NULL, "Write to LCD")
 {
     if (argc != 2) die("Usage: write 'string'\n");
     fprintf(&glass.handle, "\f%s\v", argv[1]);
-    return 0;
 }
 
 THREAD(clock, 134)

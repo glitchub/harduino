@@ -209,7 +209,7 @@ static void show(char *name, uint8_t *base, uint16_t size)
 {
     uint16_t x=0;
     while (*base++ == 0xA5) x++;
-    printf("%-11s: %d unused of %d\n", name, x, size);
+    pprintf("%-11s: %d unused of %d\n", name, x, size);
 }
 
 void debug_stacks(void)

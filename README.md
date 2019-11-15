@@ -22,7 +22,11 @@ Projects:
         interrupts before resetting the CPU. Max is 8192. Set to 0 to disable
         the watchdog completely. If not defined, the default is 128.
 
-        Driver-specific definitions, as seen in the driver source files.
+        DEBUG_STACKS - if using the 'command' driver (which requires the
+        'threads' driver), enable a 'stacks' command showing unused stack space
+        for each thread.
+
+        Other driver-specific definitions, as seen in the driver source files.
 
     make.inc is included by the Makefile, and defines:
 

@@ -10,8 +10,8 @@ int main(void)
     while(true)
     {
         TOG_GPIO(LED);
-        for (int i=0; i<8; i++) printf("%0d=%03X ",i,get_a2d((struct a2d []){{i, false, false}}));
-        printf("\n");
+        for (int i=0; i<8; i++) pprintf("%0d=%03X ",i,get_a2d((struct a2d []){{i, false, false}}));
+        pprintf("\n");
         sleep_ticks(250);
     }
 }

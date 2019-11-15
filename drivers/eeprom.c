@@ -43,7 +43,6 @@ COMMAND(eeprom, NULL, "read/write eeprom")
         write_eeprom(offset, byte);
     } else
         byte = read_eeprom(offset);
-    printf("%s eeprom %04X = %02X\n", (argc==3)?"Wrote":"Read", offset, byte);
-    return 0;
+    pprintf("%s eeprom %04X = %02X\n", (argc==3)?"Wrote":"Read", offset, byte);
 }
 #endif
