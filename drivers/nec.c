@@ -68,7 +68,7 @@ ISR(TIMER1_COMPA_vect)
 {
     // Timeout waiting for next edge. A timeout in state 4 means we received a
     // repeat code, push as code 0.
-    if (state == 4) push(0); 
+    if (state == 4) push(0);
     reset();
 }
 
@@ -131,12 +131,12 @@ void init_nec(void)
     reset();
 }
 
-// If IR key pressed, set *key and return 1.                                                                                                                                               
-// If IR key released, set *key and return -1.                                                                                                                                              
-// Otherwise return 0.                                                                                                                                                                         
-// It's possible to get a new key press without a previous key release.                    
+// If IR key pressed, set *key and return 1.
+// If IR key released, set *key and return -1.
+// Otherwise return 0.
+// It's possible to get a new key press without a previous key release.
 static uint32_t pressed; // last pressed key
-static uint32_t timeout; // ticks at last event 
+static uint32_t timeout; // ticks at last event
 int8_t get_nec(uint32_t *key)
 {
     if (count)
@@ -144,7 +144,7 @@ int8_t get_nec(uint32_t *key)
         // there's something in the queue
         uint8_t sreg = SREG;
         cli();
-        *key=keys[head++]; 
+        *key=keys[head++];
         head %= KEYS;
         count--;
         SREG = sreg;
@@ -153,7 +153,7 @@ int8_t get_nec(uint32_t *key)
         pressed=*key;
         return 1;                   // key press
     }
-    
+
     if (pressed && expired(timeout))
     {
         // timeout

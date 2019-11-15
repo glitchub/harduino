@@ -115,7 +115,7 @@ void start_stepper(int16_t s)
         if (steps > STOP_STEPS) steps=STOP_STEPS;
         sei();
         // spin here until motor stops...
-#ifndef THREADED
+#ifndef THREAD
         while (TIMSK0);
 #else
         while (TIMSK0) yield();
@@ -142,7 +142,7 @@ void start_stepper(int16_t s)
 void run_stepper(int16_t s)
 {
     start_stepper(s);
-#ifdef THREADED
+#ifdef THREAD
     while (running_stepper()) yield();
 #else
     while (running_stepper());

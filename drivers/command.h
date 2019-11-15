@@ -6,10 +6,11 @@ typedef struct
     int8_t (*func)(int8_t argc, char *argv[]);
 } _command;
 
-// Given name, alias, usage, command, create _command record and add its
-// address tp the .commands section.
-#define COMMAND(n, a, d, f) \
-  static const _command * f ## _command __attribute__((used,section(".commands"))) = &(_command){ .name=n, .alias=a, .desc=d, .func=f }
+// Given name, alias string, and description string, create _command record and command function preface.
+#define COMMAND(n, a, d) \
+    static int8_t n ## _commandfunc (int8_t argc, char *argv[]); \
+    static const _command * n ## _command __attribute__((used, section(".commands"))) = &(_command) { .name = #n, .alias = a, .desc = d, .func = n ## _commandfunc }; \
+    static int8_t __attribute__((used)) n ## _commandfunc (int8_t argc, char *argv[])
 
 // Execute a command string and return 0 if success, or non-zero if error
 int8_t execute(char *s);

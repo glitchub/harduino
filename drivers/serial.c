@@ -6,7 +6,7 @@
 #define SERIAL_RX_SIZE 4    // receive buffer size, must be 0 to 255
 
 // If defined, enable printf()
-#define SERIAL_STDIO 1      
+#define SERIAL_STDIO 1
 
 #ifdef THREAD
 // a transmit semaphore, counts the space in the transmit buffer
@@ -24,9 +24,9 @@ ISR(USART_UDRE_vect)                                // holding register empty
         UDR0=txq[txo];                              // do so
         txo = (txo+1)%SERIAL_TX_SIZE;               // advance to next
         txn--;
-#ifdef THREAD        
+#ifdef THREAD
         release(&txsem);                            // release suspended writer
-#endif        
+#endif
     }
     else
         UCSR0B &= (uint8_t)~(1<<UDRIE0);            // else disable interrupt
@@ -35,7 +35,7 @@ ISR(USART_UDRE_vect)                                // holding register empty
 // Block until space in the transmit queue, then send it
 void write_serial(int8_t c)
 {
-#ifdef THREAD    
+#ifdef THREAD
     suspend(&txsem);                                // suspend while queue is full
 #else
     while (txn == SERIAL_TX_SIZE);                  // spin while queue is full
@@ -86,9 +86,9 @@ ISR(USART_RX_vect)
     if (rxn == SERIAL_RX_SIZE) return;              // or receive queue overflow
     rxq[(rxo + rxn) % SERIAL_RX_SIZE] = c;          // insert into queue
     rxn++;                                          // note another
-#ifdef THREAD    
+#ifdef THREAD
     release(&rxsem);                                // release suspended reader
-#endif    
+#endif
 }
 
 // Block until character is receive queue then return it
@@ -113,9 +113,9 @@ bool readable_serial(void)
 {
 #ifdef THREAD
     return is_released(&rxsem);
-#else    
+#else
     return rxn;
-#endif    
+#endif
 }
 
 #ifdef SERIAL_STDIO

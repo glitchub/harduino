@@ -1,7 +1,6 @@
 // RFID demo project definitions
 
 #define BOARD "uno_r3.h"
-#define TICKMS 4
 
 // SPI definitions
 #define SPI_ORDER 0         // send MSB first

@@ -22,48 +22,43 @@ THREAD(pwmled,80)
 
 static char hasmutex=0;
 // release mutex if currently grabbede
-static int8_t run(int8_t argc, char **argv)
+COMMAND(run, NULL, "start PWMs")
 {
     if (hasmutex) release(&pwm_mutex), hasmutex=0;
     return 0;
 }
-COMMAND("run", NULL, "start PWMs", run);
 
 // grab mutex if not grabbed
-static int8_t stop(int8_t argc, char **argv)
+COMMAND(stop, NULL, "stop PWMs")
 {
     if (!hasmutex) suspend(&pwm_mutex), hasmutex=1;
     return 0;
 }
-COMMAND("stop", NULL, "stop PWMs", stop);
 
 // release mutex and immediately grab it again, i.e. pwmleds runs once
-static int8_t step(int8_t argc, char **argv)
+COMMAND(step, NULL, "step PWMs")
 {
     if (hasmutex) release(&pwm_mutex);
     suspend(&pwm_mutex);
     hasmutex=1;
     return 0;
 }
-COMMAND("step", NULL, "step PWMs", step);
 
-static int8_t status(int8_t argc, char **argv)
+COMMAND(status, NULL, "show PWM status")
 {
     printf("pwmleds thread is currently %s\n", hasmutex?"stopped":"running");
     printf("TCCR0A=%02X TCCR0B=%02X OCR0A=%02X OCR0B=%02X\n", TCCR0A, TCCR0B, OCR0A, OCR0B);
     printf("TCCR1A=%02X TCCR1B=%02X OCR1A=%04X OCR1B=%04X ICR1=%04X\n", TCCR1A, TCCR1B, OCR1A, OCR1B, ICR1);
     return 0;
 }
-COMMAND("status", NULL, "show PWM status", status);
 
-static int8_t sync(int8_t argc, char **argv)
+COMMAND(sync, NULL, "sync PWM states")
 {
     sync_pwm();
     return 0;
 }
-COMMAND("sync", NULL, "sync PWM states", sync);
 
-static int8_t freq(int8_t argc, char **argv)
+COMMAND(freq,  NULL, "set PWM 2/3 frequency")
 {
     if (argc != 2)
     {
@@ -74,9 +69,8 @@ static int8_t freq(int8_t argc, char **argv)
     printf("setting pwm freq = %u, actual = %u\n", freq, set_timer1_freq(freq));
     return 0;
 }
-COMMAND("freq",  NULL, "set PWM 2/3 frequency", freq);
 
-static int8_t width(int8_t argc, char **argv)
+COMMAND(width, NULL, "set a PWM pulse width percent")
 {
     if (argc != 3)
     {
@@ -96,7 +90,6 @@ static int8_t width(int8_t argc, char **argv)
     }
     return 0;
 }
-COMMAND("width", NULL, "set a PWM pulse width percent", width);
 
 THREAD(blink,80)
 {
@@ -111,6 +104,7 @@ THREAD(blink,80)
 int main(void)
 {
     init_serial();
+    printf("PWM demo\n");
     start_threads();
     command(">");
 }

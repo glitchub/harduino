@@ -35,7 +35,7 @@ CFLAGS+=-Os
 include ${PROJECT}/make.inc
 
 # process include files in this order
-INCLUDE:=$(addsuffix .h, main core $(filter threads command,${DRIVERS}) ticks $(filter-out threads command,${DRIVERS}))
+INCLUDE:=$(addsuffix .h, main core ${DRIVERS})
 
 # always build main and ticks
 OBJS=$(addprefix ${BUILD}/, $(addsuffix .o,main ticks ${DRIVERS}))

@@ -2,12 +2,6 @@
 // Arduino resonator is wildly inaccurate so let's just call them 'ticks'
 // instead.
 
-// Default to four-millisecond tick resolution
-// Higher numbers == less interrupts == lower idle current
-#ifndef TICKMS
-#define TICKMS 4
-#endif
-
 static volatile uint32_t ticks;
 #ifdef THREAD
 static semaphore tick_sem;                  // released by the ISR to wake the ticker thread
@@ -34,22 +28,22 @@ static void start(void)
     TCCR2B = 4;                             // 8 Mhz, 1 mS: div=64, count=125
     OCR2A = 124;
   #elif TICKMS==2
-    TCCR2B = 5;                              // 8 Mhz, 2 mS: div=128, count=125
+    TCCR2B = 5;                             // 8 Mhz, 2 mS: div=128, count=125
     OCR2A = 124;
-  #elif TICKMS==4
+  #elif TICKMS<=4
     TCCR2B = 6;                             // 8 Mhz, 4 mS: div=256, count=125
     OCR2A = 124;
-  #elif TICKMS==8
+  #elif TICKMS<=8
     TCCR2B = 6;                             // 8 Mhz, 8 mS: div=256, count=250
     OCR2A = 249;
-  #elif TICKMS==16
+  #elif TICKMS<=16
     TCCR2B = 7;                             // 8 Mhz, 16 mS: div=1024, count=125
     OCR2A = 124;
-  #elif TICKMS==32
+  #elif TICKMS<=32
     TCCR2B = 7;                             // 8 Mhz, 32 mS: div=1024, count=250
     OCR2A = 249;
   #else
-    #error "Unsupported TICKMS"
+    #error Max TICKMS is 32 mS
   #endif
 #elif MHZ==16
   #if TICKMS==1
@@ -58,20 +52,20 @@ static void start(void)
   #elif TICKMS==2
     TCCR2B = 6;                             // 16 Mhz, 2 mS: div=256, count=125
     OCR2A = 124;
-  #elif TICKMS==4
+  #elif TICKMS<=4
     TCCR2B = 6;                             // 16 Mhz, 4 mS: div=256, count=250
     OCR2A = 249;
-  #elif TICKMS==8
+  #elif TICKMS<=8
     TCCR2B = 7;                             // 16 Mhz, 8 mS: div=1024, count=125
     OCR2A = 124;
-  #elif TICKMS==16
+  #elif TICKMS<=16
     TCCR2B = 7;                             // 16 Mhz, 16 mS: div=1024, count=250
     OCR2A = 249;
   #else
-    #error "Unsupported TICKMS"
+    #error Max TICKMS is 16 mS
   #endif
 #else
-  #error "Unsupported MHZ"
+  #error Unsupported MHZ
 #endif
 
     TIMSK2 = 2;                             // enable OCIE2A interrupt
@@ -89,15 +83,46 @@ volatile struct sleeper
 // linked list of sleeper structs
 static struct sleeper *sleeping;
 
+
+
+
 // Ticker thread initializes the tick interrupt and then acts as the interrupt
 // "bottom half", releasing sleeping threads with expired timers.
 THREAD(ticker, 50)
 {
     start();
-    wdt_enable(WDTO_120MS);                 // use watchdog
+#if WATCHDOG > 0
+    // Enable watchdog, the timeout will be at *least* the specified number of milliseconds.
+    // Note the WDTO_XXX symbols are misnamed!
+  #if WATCHDOG <= 16
+    wdt_enable(WDTO_15MS);
+  #elif WATCHDOG <= 32
+    wdt_enable(WDTO_30MS);
+  #elif WATCHDOG <= 64
+    wdt_enable(WDTO_60MS);
+  #elif WATCHDOG <= 128
+    wdt_enable(WDTO_120MS);
+  #elif WATCHDOG <= 256
+    wdt_enable(WDTO_250MS);
+  #elif WATCHDOG <= 512
+    wdt_enable(WDTO_500MS);
+  #elif WATCHDOG <= 1024
+    wdt_enable(WDTO_1S);
+  #elif WATCHDOG <= 2048
+    wdt_enable(WDTO_2S);
+  #elif WATCHDOG <= 4096
+    wdt_enable(WDTO_4MS);
+  #elif WATCHDOG <= 8192
+    wdt_enable(WDTO_8MS);
+  #else
+    #error Max WATCHDOG is 8192 mS
+  #endif
+#endif
     while(1)
     {
+#if WATCHDOG > 0
         wdt_reset();                        // reset watchdog
+#endif
         suspend(&tick_sem);                 // suspend until interrupt
         if (!sleeping) continue;
         sleeping->ticks -= TICKMS;

@@ -17,9 +17,9 @@
 //      }
 //
 #define THREAD(name,size) \
-    static void name(void); \
+    static void name ## _threadfunc(void); \
     ADD_THREAD(name,size); \
-    static void __attribute__((used,noreturn)) name(void)
+    static void __attribute__((used,noreturn)) name ## _threadfunc(void)
 // The THREAD macro defines the function with the given name and allocates the
 // specified number of bytes for its stack.
 //
@@ -158,10 +158,10 @@ typedef struct
 #ifdef DEBUG_STACKS
 // For stack debugging we need to save the thread name as a string
 #define ADD_THREAD(n,s) \
-    static const _thread * n ## _thread __attribute__((used,section(".threads")))=&(_thread){.name=#n, .func=n, .size=s, .stack=(uint8_t[s]){}};
+    static const _thread * n ## _thread __attribute__((used,section(".threads")))=&(_thread){.name=#n, .func=n ## _threadfunc, .size=s, .stack=(uint8_t[s]){}};
 #else
 #define ADD_THREAD(n,s) \
-    static const _thread * n ## _thread __attribute__((used,section(".threads")))=&(_thread){.func=n, .size=s, .stack=(uint8_t[s]){}};
+    static const _thread * n ## _thread __attribute__((used,section(".threads")))=&(_thread){.func=n ## _threadfunc, .size=s, .stack=(uint8_t[s]){}};
 #endif
 // ADD_THREAD is invoked by the THREAD() macro, it can also be invoked directly to
 // add a manually created thread, or to run the same thread function as two or
@@ -175,6 +175,3 @@ void start_threads(void);
 // Report unused stack size of each thread to stdout.
 void debug_stacks(void);
 #endif
-
-// Tell interested drivers we're using threads
-#define THREADED

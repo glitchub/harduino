@@ -111,7 +111,7 @@ int8_t execute(char *s)
 }
 
 // Generic commands
-int8_t help(int8_t argc, char *argv[])
+COMMAND(help, "?", "show this list")
 {
     (void)argc; (void)argv;
 
@@ -123,10 +123,9 @@ int8_t help(int8_t argc, char *argv[])
     }
     return 0;
 }
-COMMAND("help", "?", "show this list", help);
 
 // read memory
-int8_t mem(int8_t argc, char *argv[])
+COMMAND(mem, NULL, "read/write memory")
 {
     if (argc < 2 || argc > 3) die("Usage: mem address [byte]\n");
     uint16_t addr = (uint16_t)strtoul(argv[1], NULL, 0);
@@ -140,20 +139,18 @@ int8_t mem(int8_t argc, char *argv[])
     printf("%s %04X = %02X\n", (argc==3)?"Wrote":"Read", addr, byte);
     return 0;
 }
-COMMAND("mem", NULL, "read/write memory", mem);
 
 // show uptime
-int8_t uptime(int8_t argc, char *argv[])
+COMMAND(uptime, NULL, "show uptime")
 {
     (void)argv; (void) argc;
     uint32_t t=get_ticks();
     printf("%ld.%03d seconds\n", t/1000, (int)(t%1000));
     return 0;
 }
-COMMAND("uptime", NULL, "show uptime", uptime);
 
 // show fuse configuration
-int8_t fuses(int8_t argc, char *argv[])
+COMMAND(fuses, NULL, "show fuses")
 {
     (void)argc; (void)argv;
 
@@ -166,25 +163,24 @@ int8_t fuses(int8_t argc, char *argv[])
     printf("H=%02X L=%02X X=%02X lock=%02X\n", hf, lf, xf, lb);
     return 0;
 }
-COMMAND("fuses", NULL, "show fuses", fuses);
 
 #ifdef DEBUG_STACKS
-int8_t stacks(int8_t argc, char *argv[])
+COMMAND(stacks, NULL, "show unused stacks")
 {
     (void) argc; (void) argv;
     debug_stacks();
     return 0;
 }
-COMMAND("stacks", NULL, "show unused stacks", stacks);
 #endif
 
 // reset CPU
-int8_t reset(int8_t argc, char *argv[])
+COMMAND(reset, NULL, "reset the CPU")
 {
-    cli();      // interrupts off
-    while(1);   // and spin until watchdog!
+    cli();                  // interrupts off
+    wdt_enable(WDTO_15MS);  // enable watchdog
+    while(1);               // spin until it expires
+    return 0;               // won't get here
 }
-COMMAND("reset", NULL, "reset the CPU", reset);
 
 // user command loop, never returns
 void __attribute__((noreturn)) command(const char *prompt)
