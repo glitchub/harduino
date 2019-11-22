@@ -44,7 +44,7 @@ OBJS=$(addprefix ${BUILD}/, $(addsuffix .o,main ticks ${DRIVERS}))
 ${PROJECT} default: ${BUILD}/${PROJECT}.hex
         # print memory usage
 	@${PREFIX}nm ${BUILD}/${PROJECT}.elf | \
-	awk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
+	gawk '/A __data_load_end/ { flashuse=strtonum("0x" $$1) } \
 	     /N _end/ { ramuse=(strtonum("0x" $$1) % 65536) - 256 } \
 	     /W __stack/ { ramsize=(strtonum("0x" $$1) % 65536) - 255 } \
 	     END { print "$< requires",ramuse,"bytes of RAM,",flashuse,"bytes of FLASH"; \
@@ -60,13 +60,13 @@ ${BUILD}/${PROJECT}.elf: ${BUILD}/${PROJECT}.lds ${OBJS}
 # insert .threads and .commands sections immediately before end of .text
 ${BUILD}/${PROJECT}.lds: ${BUILD}/default.lds
 	cat $< | \
-	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
-	awk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
+	gawk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__threads_start = .);\n*(.threads)\nPROVIDE (__threads_end = .);";ok=1}{print}END{exit !ok}' | \
+	gawk '/^ *_edata *= *\. *;$$/{print "PROVIDE (__commands_start = .);\n*(.commands)\nPROVIDE (__commands_end = .);";ok=1}{print}END{exit !ok}' \
 	> $@
 
-# gcc outputs default linker script with leading and trailing line of ==='s, use awk to extract
+# gcc outputs default linker script with leading and trailing line of ==='s, use gawk to extract
 ${BUILD}/default.lds: ${BUILD}/.current.${PROJECT}
-	{ ${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null; true; } | awk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
+	{ ${PREFIX}gcc -mmcu=${CHIP} -Wl,-verbose 2>/dev/null; true; } | gawk '/^=+$$/{n++; next}n==1{print}END{exit n!=2}' > $@
 
 VPATH=${PROJECT} drivers core
 ${BUILD}/%.o: %.c %.h core.h ${BUILD}/.current.${PROJECT}
