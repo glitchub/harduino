@@ -8,7 +8,7 @@ int main(void)
     init_serial();
     while(true)
     {
-        sleep_ticks(250);
+        sleep_ticks(2000);
         TOG_GPIO(LED);
         uint8_t dc, rh, err;
         err=get_dht11(&dc, &rh, (gpio []){{GPIO04}});
