@@ -28,6 +28,7 @@ ifneq (${PROJECT},)
 
 CFLAGS=-Wall -Werror -std=gnu99
 CFLAGS+=-Os
+CFLAGS+=-fstack-usage
 #CFLAGS+=-g
 #CFLAGS+=-save-temps
 

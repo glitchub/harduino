@@ -10,7 +10,6 @@ THREAD(blink,80)
     }
 }
 
-uint32_t get_entropy(void);
 // Harduino rng demo
 int main(void)
 {

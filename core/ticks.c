@@ -8,7 +8,7 @@ static semaphore tick_sem;                  // released by the ISR to wake the t
 #endif
 ISR(TIMER2_COMPA_vect)
 {
-    ticks+=TICKMS;                          // this will wrap about every 50 days
+    ticks += TICKMS;                        // this will wrap about every 50 days
 #ifdef THREAD
     release(&tick_sem);
 #endif
@@ -83,9 +83,6 @@ volatile struct sleeper
 // linked list of sleeper structs
 static struct sleeper *sleeping;
 
-
-
-
 // Ticker thread initializes the tick interrupt and then acts as the interrupt
 // "bottom half", releasing sleeping threads with expired timers.
 THREAD(ticker, 50)
@@ -129,42 +126,10 @@ THREAD(ticker, 50)
         while (sleeping->ticks <= 0)        // expired?
         {
             release(&(sleeping->sem));      // release it
-            sleeping=sleeping->next;        // advance to next sleeper
+            sleeping = sleeping->next;      // advance to next sleeper
             if (!sleeping) break;           // none left?
         }
     }
-}
-
-// insert sleeper s into sleeping list
-// saves couple bytes of stack this way
-inline static void insert(struct sleeper *s)
-{
-    if (!sleeping)
-    {
-        sleeping=s;
-        return;
-    }
-        struct sleeper **sp = &sleeping;    // for each sleeping thread
-        while (1)
-        {
-       if ((*sp)->ticks < s->ticks)     // if they expire before us
-            {
-           s->ticks -= (*sp)->ticks;    // we go after, decrement our count
-                if (!(*sp)->next)           // end of list?
-                {
-               (*sp)->next=s;           // just link us in
-                    break;
-                }
-                sp=*(void **)sp;            // else keep descending
-            }
-            else
-            {
-           (*sp)->ticks -= s->ticks;    // they expire after us, adjust their count
-           s->next=(*sp);               // and insert us
-           *sp=s;
-                break;
-            }
-        }
 }
 
 // Suspend calling thread for specified number of ticks. The sleeping list is
@@ -173,10 +138,36 @@ void sleep_ticks(int32_t t)
 {
     if (t <= 0) return;                     // meh
 
-    struct sleeper s;                       // sleeper struct goes on the stack
+    struct sleeper s;                       // sleeper struct stays on thread's stack
     memset(&s, 0, sizeof s);
-    s.ticks=t;
-    insert(&s);
+    s.ticks = t;
+    // insert us into the list of sleeping threads, the list is sorted in order
+    // of expiration
+    if (!sleeping) sleeping = &s;           // we get to be next
+    else
+    {
+        struct sleeper **sp = &sleeping;    // for each sleeping thread
+        while (1)
+        {
+            if ((*sp)->ticks < s.ticks)     // if they expire before us
+            {
+                s.ticks -= (*sp)->ticks;    // we go after, decrement our count
+                if (!(*sp)->next)           // end of list?
+                {
+                    (*sp)->next = &s;       // just link us in
+                    break;                  // done
+                }
+                sp = *(void **)sp;          // else keep descending
+            }
+            else
+            {
+                (*sp)->ticks -= s.ticks;    // they expire after us, adjust their count
+                s.next = *sp;               // and insert us
+                *sp = &s;
+                break;                      // done
+            }
+        }
+    }
     suspend(&s.sem);                        // suspend here until tick thread releases us
 }
 #else
@@ -193,8 +184,8 @@ void sleep_ticks(int32_t t)
 {
     if (t <= 0) return;                     // meh
     cli();
-    uint32_t u=ticks+t;
-    while ((int32_t)(u-ticks)>0)            // while not expired
+    uint32_t u = ticks +t;
+    while ((int32_t)(u-ticks) > 0)          // while not expired
     {
         sei();
         sleep_cpu();
